@@ -1,0 +1,9 @@
+
+
+
+/* step 1 run this do insert into source table*/
+insert into consumable_streak_source (user_id, assigned_date, created_at, updated_at)
+select user_id, assigned_date, now() as created_at, now() as updated_at from diet_histories_numi2 where assigned_date >= current_date - 30 and deleted_at is null
+group by user_id, assigned_date
+--order by user_id, assigned_date
+on conflict on constraint consumable_streak_source_unique_id do nothing;
