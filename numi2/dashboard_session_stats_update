@@ -1,0 +1,22 @@
+
+CREATE OR REPLACE FUNCTION public.dashboard_session_stats_update(st_date date)
+  RETURNS void AS
+$BODY$
+BEGIN
+
+delete from dashboard_session_stats where date >=  (st_date - interval '7 day')::date;
+
+INSERT INTO dashboard_session_stats (source, type, date, sessions, created_at, updated_at) 
+select case when view_name = 'NuMi Production Mobile' then 'mobile' when view_name = 'NuMi Production Web' then 'web' else null end as source, 
+case when metric = 'ga:sessions' then 'sessions' when metric = 'ga:1dayUsers' then  'active_users_1_day' when metric = 'ga:7dayUsers' then  'active_users_7_day' when metric = 'ga:30dayUsers' then  'active_users_30_day' end as type,
+dimension::date, cast(value as integer) as sessions, now() as created_at, now() as updated_at
+from google_reports gr where created_date = st_date
+and view_name like 'NuMi%'
+order by view_name, metric, dimension::date;
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.dashboard_session_stats_update(date)
+  OWNER TO gfuser;
