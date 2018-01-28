@@ -1,3 +1,5 @@
+
+
 -- Function: public.user_stats_weekly_update_mon(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_mon(timestamp without time zone);
@@ -113,6 +115,11 @@ group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
 
 where (weight.user_id is not null or water.user_id is not null or consumed.user_id is not null or active.user_id is not null) 
 order by td.a, p.user_id;
+
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'user_stats_weekly_update_mon' as function_name, now() as created_at, now() as updated_at;
+
 
 END;
 $BODY$
