@@ -40,8 +40,19 @@ select a.user_id, a.cnt, i.list_id,  'Powerfueld_Goal' as task, now() as created
 from (select lu.user_id, lu.list_id, lu.list_start_date, t.day_start, t.day_end from  list_users_c18 lu
 inner join css_in t on t.id = lu.list_id
 where t.campaign_sequence = 4
+) i
+left join lateral
+ (select * from get_diet_history_by_category(i.user_id, i.list_start_date::date + i.day_start - 1, i.list_start_date::date + i.day_end - 2, 'POWERFUEL') as (user_id int, cnt int))  a  on true
+where a.cnt >= 1;
+/*
+select a.user_id, a.cnt, i.list_id,  'Powerfueld_Goal' as task, now() as created_at, now() as updated_at
+--select *
+from (select lu.user_id, lu.list_id, lu.list_start_date, t.day_start, t.day_end from  list_users_c18 lu
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 4
 ) as i, get_diet_history_by_category(i.user_id, i.list_start_date::date + i.day_start - 1, i.list_start_date::date + i.day_end - 2, 'POWERFUEL') a 
 where a.cnt >= 1;
+*/
 
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_bonus_numi_update' as function_name, now() as created_at, now() as updated_at;
