@@ -1,3 +1,4 @@
+
 -- Function: public.challenge_bonus_numi_update(timestamp without time zone)
 
 -- DROP FUNCTION public.challenge_bonus_numi_update(timestamp without time zone);
@@ -33,26 +34,34 @@ inner join css_in t on t.id = lu.list_id
 where t.campaign_sequence = 4 and cast(us.created_at as date) >= lu.list_start_date::date + day_start and cast(us.created_at as date) <= lu.list_start_date::date + day_end
 group by us.api_email, u.id, lu.list_id;
 
+/** calculate powerfueld bonus **/
+drop table if exists tmp_powerfuel;
+create temp table tmp_powerfuel ( id integer, user_id integer, consumable_id integer, consumable_type varchar(255), assigned_date date, created_at timestamp, food_categories jsonb);
 
-insert into css_bonus (user_id, cnt, list_id, task, created_at, updated_at)
-select a.user_id, a.cnt, i.list_id,  'Powerfueld_Goal' as task, now() as created_at, now() as updated_at
---select *
-from (select lu.user_id, lu.list_id, lu.list_start_date, t.day_start, t.day_end from  list_users_c18 lu
+insert into tmp_powerfuel (id, user_id, consumable_id, consumable_type, assigned_date, created_at, food_categories)
+select dh.id, dh.user_id, dh.consumable_id, dh.consumable_type, dh.assigned_date, dh.created_at, dh.food_categories
+from diet_histories_numi2 dh
+where dh.assigned_date >= (select t.list_start_date + t.day_start -1 from css_in t where t.campaign_sequence = 4 ) 
+and dh.assigned_date <= (select t.list_start_date + t.day_end -1 from css_in t where t.campaign_sequence = 4 ) and dh.deleted_at is null;
+
+
+delete from tmp_powerfuel
+where user_id not in 
+(select lu.user_id from  list_users_c18 lu
 inner join css_in t on t.id = lu.list_id
-where t.campaign_sequence = 4
-) i
-left join lateral
- (select * from get_diet_history_by_category(i.user_id, i.list_start_date::date + i.day_start - 1, i.list_start_date::date + i.day_end - 2, 'POWERFUEL') as (user_id int, cnt int))  a  on true
-where a.cnt >= 1;
-/*
-select a.user_id, a.cnt, i.list_id,  'Powerfueld_Goal' as task, now() as created_at, now() as updated_at
+where t.campaign_sequence = 4 );
+
+create index "idx_tmp_powerfuel_user_id" on tmp_powerfuel using btree(user_id);
+create index "idx_tmp_powerfuel_food_categories" on tmp_powerfuel using btree(food_categories);
+
+insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
+select a.user_id, a.cnt,  'Powerfueld_Goal' as task, now() as created_at, now() as updated_at
 --select *
-from (select lu.user_id, lu.list_id, lu.list_start_date, t.day_start, t.day_end from  list_users_c18 lu
-inner join css_in t on t.id = lu.list_id
-where t.campaign_sequence = 4
-) as i, get_diet_history_by_category(i.user_id, i.list_start_date::date + i.day_start - 1, i.list_start_date::date + i.day_end - 2, 'POWERFUEL') a 
+from (select distinct(user_id) from tmp_powerfuel
+) i,
+get_diet_history_by_category_local(i.user_id,  'POWERFUEL')  a -- on i.user_id = a.user_id
 where a.cnt >= 1;
-*/
+
 
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_bonus_numi_update' as function_name, now() as created_at, now() as updated_at;
@@ -62,5 +71,4 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.challenge_bonus_numi_update(timestamp without time zone)
-  OWNER TO gfuser;
+
