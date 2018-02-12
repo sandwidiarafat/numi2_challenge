@@ -1,0 +1,135 @@
+-- Function: public.challenge_complete_sb_update(timestamp without time zone, integer)
+
+-- DROP FUNCTION public.challenge_complete_sb_update(timestamp without time zone, integer);
+
+CREATE OR REPLACE FUNCTION public.challenge_complete_sb_update(
+    _datetime timestamp without time zone,
+    debug_mode integer DEFAULT NULL::integer)
+  RETURNS void AS
+$BODY$
+BEGIN
+
+
+/********************  SUCCESS EXPIRATION 'C18_C1_TASK_2_STATUS_EXPIRE_SUCCESS' set to success **************************************/
+
+/**** success expiration   need to modify for all campaigns ****/
+-- task 1
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select t1.user_id, t2.attribute_name, t2.data_type, t2.data_value, t2.campaign_stream_steps_id, t2.list_users_id 
+from (select distinct(user_id) from appboy_user_events_sb where attribute_name like 'SB_C18_C%_TASK_1_STATUS' and data_value = 'SUCCESS') t1
+inner join (
+select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from list_users_c18_sobe lu 
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'result_status_success_expiration' and  task_number = 1 -- and campaign_sequence = 1
+where  lu.campaign_id = 1 )  t2 on t1.user_id = t2.user_id
+except (
+select tt.user_id, tt.attribute_name, tt.data_type,  tt.data_value, tt.campaign_stream_steps_id, tt.list_users_id  from (
+select distinct on (aue.user_id, aue.campaign_stream_steps_id) aue.user_id, aue.attribute_name, aue.data_type,  aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id from appboy_user_events_sb aue
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id
+where css.rule_type =  'result_status_success_expiration' and  css.task_number = 1
+ order by user_id,  campaign_stream_steps_id, date_sent desc ) tt );
+
+ 
+-- task 2
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select t1.user_id, t2.attribute_name, t2.data_type, t2.data_value, t2.campaign_stream_steps_id, t2.list_users_id 
+from (select distinct(user_id) from appboy_user_events_sb where attribute_name like 'SB_C18_C%_TASK_2_STATUS' and data_value = 'SUCCESS') t1
+inner join (
+select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from list_users_c18_sobe lu 
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'result_status_success_expiration' and  task_number = 2 -- and campaign_sequence = 1
+where  lu.campaign_id = 1 )  t2 on t1.user_id = t2.user_id
+except (
+select tt.user_id, tt.attribute_name, tt.data_type,  tt.data_value, tt.campaign_stream_steps_id, tt.list_users_id  from (
+select distinct on (aue.user_id, aue.campaign_stream_steps_id) aue.user_id, aue.attribute_name, aue.data_type,  aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id from appboy_user_events_sb aue
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id
+where css.rule_type =  'result_status_success_expiration' and  css.task_number = 2
+ order by user_id,  campaign_stream_steps_id, date_sent desc ) tt );
+
+
+
+
+/***************************** start here on results final  *******************************************************/
+ 
+drop table if exists tmp_c18_results_sb;
+create temp table if not exists tmp_c18_results_sb
+(user_id integer, list_id integer, campaign_sequence integer, t1 integer, t2 integer);
+
+insert into tmp_c18_results_sb (user_id, list_id, campaign_sequence, t1, t2)
+select ww.user_id, ww.list_id, ww.campaign_sequence,  max(case when ww.task_number = 1 then 1 else 0 end) as t1, max(case when ww.task_number = 2 then 1 else 0 end) as t2  from (
+	select aue.user_id, zz.list_id, zz.campaign_sequence, zz.task_number from appboy_user_events_sb aue
+	inner join (
+		select css.id, css.data_value, css.campaign_sequence, css.task_number, tt.list_id from campaign_stream_steps_sobe css 
+		inner join ( 
+			select distinct on (l.id, css.campaign_sequence) l.id as list_id, css.campaign_sequence from lists_sobe l 
+			inner join campaign_stream_steps_sobe css on datediff('day', l.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'result_final'
+			where l.campaign_id = 1 
+				) tt on css.campaign_sequence = tt.campaign_sequence 
+				where css.rule_type = 'result_status_success'
+				) zz on aue.campaign_stream_steps_id = zz.id and aue.data_value = 'SUCCESS' 
+				) ww
+			group by ww.user_id, ww.list_id, ww.campaign_sequence;
+
+drop table if exists tmp_c18_results_final_sb;
+create temp table if not exists tmp_c18_results_final_sb
+(user_id integer, list_id integer, campaign_sequence integer, attribute_name varchar(255), data_type varchar(255), data_value varchar(255), campaign_stream_steps_id integer);
+
+insert into tmp_c18_results_final_sb (user_id, list_id, campaign_sequence)
+select lu.user_id, lu.list_id, aa.campaign_sequence from list_users_c18_sobe lu
+inner join  (
+select list_id, campaign_sequence from tmp_c18_results_sb group by list_id, campaign_sequence) aa on lu.list_id = aa.list_id
+and lu.campaign_id = 1;
+--select * from tmp_c18_results
+
+update tmp_c18_results_final_sb ww
+set data_value = case when (zz.t1 = 1 and zz.t2 = 1) then 'ALL_TASKS_COMPLETED' when (zz.t1 = 1 and zz.t2 = 0 ) then 'ONLY_TASK1_COMPLETED' when (zz.t1 = 0 and zz.t2 = 1 ) then 'ONLY_TASK2_COMPLETED'else null end
+from (
+select t1.user_id, t1.list_id, t1,t2 from tmp_c18_results_final_sb t1
+inner join tmp_c18_results_sb t2 on t1.user_id = t2.user_id and t1.list_id = t2.list_id ) zz
+where ww.user_id = zz.user_id;
+
+update tmp_c18_results_final_sb ww
+set data_value = 'NONE_COMPLETED'
+where data_value is null;
+
+update tmp_c18_results_final_sb ww
+set  attribute_name = zz.attribute_name, data_type = 'String', campaign_stream_steps_id = zz.id
+from (
+select tt.user_id, tt.campaign_sequence,  css.attribute_name, css.id from tmp_c18_results_final_sb tt
+inner join campaign_stream_steps_sobe css on tt.campaign_sequence = css.campaign_sequence and tt.data_value = css.data_value
+where css.rule_type = 'result_final' ) zz 
+where ww.user_id = zz.user_id and ww.campaign_sequence = zz.campaign_sequence;
+
+
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_id as list_users_id from tmp_c18_results_final_sb
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb;
+
+
+drop table tmp_c18_results_final_sb;
+drop table tmp_c18_results_sb;
+
+IF(debug_mode = 1)
+THEN
+update appboy_user_events_sb
+set date_sent = '2020-01-01', status = 'COMPLETED'
+where date_sent is null;
+
+else
+
+end if;
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'challenge_complete_sb_update' as function_name, now() as created_at, now() as updated_at;
+
+
+/**************************** END *******************************************************************************************************/
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.challenge_complete_sb_update(timestamp without time zone, integer)
+  OWNER TO gfuser;
