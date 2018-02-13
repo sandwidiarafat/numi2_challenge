@@ -1,8 +1,4 @@
 
--- Function: public.challenge_bonus_numi_update(timestamp without time zone)
-
--- DROP FUNCTION public.challenge_bonus_numi_update(timestamp without time zone);
-
 CREATE OR REPLACE FUNCTION public.challenge_bonus_numi_update(_datetime timestamp without time zone)
   RETURNS void AS
 $BODY$
@@ -41,8 +37,9 @@ create temp table tmp_powerfuel ( id integer, user_id integer, consumable_id int
 insert into tmp_powerfuel (id, user_id, consumable_id, consumable_type, assigned_date, created_at, food_categories)
 select dh.id, dh.user_id, dh.consumable_id, dh.consumable_type, dh.assigned_date, dh.created_at, dh.food_categories
 from diet_histories_numi2 dh
-where dh.assigned_date >= (select t.list_start_date + t.day_start -1 from css_in t where t.campaign_sequence = 4 ) 
-and dh.assigned_date <= (select t.list_start_date + t.day_end -1 from css_in t where t.campaign_sequence = 4 ) and dh.deleted_at is null;
+where dh.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in t where t.campaign_sequence = 4) st ) 
+and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in t  where t.campaign_sequence = 4 ) ed ) 
+and dh.deleted_at is null;
 
 
 delete from tmp_powerfuel
@@ -71,4 +68,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-
+ALTER FUNCTION public.challenge_bonus_numi_update(timestamp without time zone)
+  OWNER TO gfuser;
