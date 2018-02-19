@@ -1,3 +1,6 @@
+-- Function: public.challenge_bonus_numi_update(timestamp without time zone)
+
+-- DROP FUNCTION public.challenge_bonus_numi_update(timestamp without time zone);
 
 CREATE OR REPLACE FUNCTION public.challenge_bonus_numi_update(_datetime timestamp without time zone)
   RETURNS void AS
