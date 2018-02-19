@@ -60,7 +60,7 @@ insert into appboy_user_events (user_id, attribute_name, data_type, data_value, 
 select lu.user_id, css.attribute_name, css.data_type, cast(dh.cnt as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from list_users_c18 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between css.day_start and css.day_end and css.campaign_id = 3 and rule_type = 'task_count' and campaign_sequence = 4 and task_number = 1
-inner join (select user_id, cnt from css_log_powerfuel_complete) dh on lu.user_id = dh.user_id
+inner join (select user_id, cnt from css_bonus where task = 'Powerfueld_Goal') dh on lu.user_id = dh.user_id
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence = 4 and task_number = 1 and css.campaign_id = 3; 
 
@@ -131,7 +131,7 @@ insert into appboy_user_events (user_id, attribute_name, data_type, data_value, 
 select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from list_users_c18 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between css.day_start and css.day_end and css.campaign_id = 3 and rule_type = 'task_count' and campaign_sequence = 4 and task_number = 2
-inner join (select user_id from css_scan_food_complete) dh on lu.user_id = dh.user_id
+inner join (select user_id from css_bonus where task = 'Scan_Goal') dh on lu.user_id = dh.user_id
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence = 4 and task_number = 2 and css.campaign_id = 3; 
 
@@ -313,7 +313,28 @@ from list_users_c18 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 3 and rule_type = 'promo_code_end_date' and campaign_sequence = 3 and task_number = 2
 where  lu.campaign_id = 3 )  t2 on t1.user_id = t2.user_id
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
+inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'promo_code_end_date' and  css.campaign_id = 3
+union all
+-- C4_T1
+select t1.user_id, t2.attribute_name, t2.data_type, to_char(t2.list_start_date::date + t2.day_end + 6 * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, t2.campaign_stream_steps_id, t2.list_users_id 
+from (select distinct(user_id) from appboy_user_events where attribute_name = 'C18_C3_TASK_1_STATUS' and data_value = 'SUCCESS') t1
+inner join 
+(select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
+from list_users_c18 lu 
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 3 and rule_type = 'promo_code_end_date' and campaign_sequence = 4 and task_number = 1
+where  lu.campaign_id = 3 )  t2 on t1.user_id = t2.user_id
+	union all  
+-- C4_T2
+select t1.user_id, t2.attribute_name, t2.data_type, to_char(t2.list_start_date::date + t2.day_end + 6 * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, t2.campaign_stream_steps_id, t2.list_users_id 
+from (select distinct(user_id) from appboy_user_events where attribute_name = 'C18_C3_TASK_2_STATUS' and data_value = 'SUCCESS') t1
+inner join
+(select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
+from list_users_c18 lu 
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 3 and rule_type = 'promo_code_end_date' and campaign_sequence = 4 and task_number = 2
+where  lu.campaign_id = 3 )  t2 on t1.user_id = t2.user_id
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'promo_code_end_date' and  css.campaign_id = 3;
+
 
 /****************** END ON PROMO CODE END DATE ************************************************/
 
