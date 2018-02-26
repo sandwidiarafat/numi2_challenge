@@ -106,10 +106,10 @@ group by lu.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.li
 except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb;
 
 
--- C3_T1 task count 2  hit water goal  
+-- C3_T2 task count 2  hit water goal  
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 	
-select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.water_days_met_goal) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 	-- select *
 from user_stats_weekly_mon_sobe usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1
