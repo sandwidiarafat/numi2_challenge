@@ -1,0 +1,105 @@
+-- Function: public.challenge_bonus_sobe_update(timestamp without time zone)
+
+-- DROP FUNCTION public.challenge_bonus_sobe_update(timestamp without time zone);
+
+CREATE OR REPLACE FUNCTION public.challenge_bonus_sobe_update(_datetime timestamp without time zone)
+  RETURNS void AS
+$BODY$
+BEGIN
+
+
+truncate table tmp_ns_entree_sobe;
+truncate table css_bonus_sobe;
+
+insert into css_in_sobe (id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff)
+ select l.id, l.list_start_date, css.id as campaign_stream_steps_id, css.day_start, css.day_end, 
+css.campaign_sequence, datediff('day', l.list_start_date::date, _datetime::date) as date_diff
+from lists_sobe l
+inner join campaign_stream_steps_sobe css on datediff('day', l.list_start_date::date, _datetime::date)  
+between case when css.rule_type in ('date_only','date_only_start', 'date_only_complete') then day_start - 1 else day_start end and
+ case when css.rule_type in ('date_only','date_only_start', 'date_only_complete') then css.day_end - 1 else day_end end and css.campaign_id = 1 and l.campaign_id = 1
+ where css.attribute_name like 'SB_C18_C%_TASK_1_COUNT'
+ order by l.id, css.id;
+
+/** tmp sb_entrees and recipes **/
+drop table if exists tmp_ns_entree_sobe;
+create temp table tmp_ns_entree_sobe ( id integer, user_id integer, assigned_date date, consumable_id integer, consumable_type varchar(255),  created_at timestamp, food_categories jsonb, food_type varchar(255), food_category varchar(255));
+
+
+insert into tmp_ns_entree_sobe (id, user_id, assigned_date, consumable_id, consumable_type,  created_at,  food_categories)
+select dh.id, dh.user_id, dh.assigned_date, dh.consumable_id, dh.consumable_type,  dh.created_at,  dh.food_categories
+from diet_histories_tracker dh 
+--left join quick_logs ql on (dh.consumable_id = ql.id and dh.consumable_type = 'QuickLog')
+--left join food_brands fb on (dh.consumable_id = fb.id and dh.consumable_type = 'FoodBrand')
+--left join food_catalogs fc on (dh.consumable_id = fc.id and dh.consumable_type = 'FoodCatalog')
+where dh.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in_sobe t where t.campaign_sequence = 4) st )
+and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in_sobe t  where t.campaign_sequence = 4) ed ) 
+and dh.deleted_at is null;
+
+create index "idx_tmp_ns_entree_sobe_user_id" on tmp_ns_entree_sobe using btree(user_id);
+
+delete from tmp_ns_entree_sobe
+where user_id not in 
+(select lu.user_id from  list_users_c18_sobe lu
+inner join css_in_sobe t on t.id = lu.list_id
+where t.campaign_sequence = 4 );
+
+create index "idx_tmp_ns_entree_sobe_consumable_id" on tmp_ns_entree_sobe using btree(consumable_id);
+create index "idx_tmp_ns_entree_sobe_consumable_type" on tmp_ns_entree_sobe using btree(consumable_type);
+create index "idx_tmp_ns_entree_sobe_consumable_food_categories" on tmp_ns_entree_sobe using btree(food_categories);
+
+-- get quicklog food category
+update tmp_ns_entree_sobe nes
+set food_category = ql.food_category
+from quick_logs ql
+where nes.consumable_id = ql.id
+and nes.consumable_type = 'QuickLog';
+
+-- update sb_entree for food_category
+update tmp_ns_entree_sobe nes
+set food_category = 'sb_entree'
+where nes.id in (
+select zz.id from (
+select nes.id, nes.consumable_id from tmp_ns_entree_sobe nes
+left join  (
+select id, json_array_elements(food_categories::json) from tmp_ns_entree_sobe where consumable_type in ('FoodCatalog') ) tt on nes.id = tt.id
+where nes.consumable_type in ('FoodCatalog') and  tt.id is null ) zz
+inner join food_catalogs fc on zz.consumable_id = fc.id and fc.entree = true );
+
+-- update for food_recipe
+update tmp_ns_entree_sobe nes
+set food_type = 'recipe'
+where nes.id in (
+select nes.id from tmp_ns_entree_sobe nes
+inner join food_catalogs fc on nes.consumable_id = fc.id
+where nes.consumable_type = 'FoodCatalog' and fc.food_type = 'recipe');
+
+insert into css_bonus_sobe (user_id, cnt, task,  created_at, updated_at)
+select a.user_id, count(*) as cnt,  'SB_ENTREE_GOAL' as task, now() as created_at, now() as updated_at
+from 
+(
+select  user_id from tmp_ns_entree_sobe where food_category = 'sb_entree'
+union all
+select user_id from (
+select id,user_id, json_array_elements(food_categories::json) as dtl from tmp_ns_entree_sobe where consumable_type in ('FoodCatalog','FoodBrand') ) tt
+where dtl->>'category' = 'sb_entree'  ) a
+group by user_id
+order by user_id;
+
+insert into css_bonus_sobe (user_id, cnt, task,  created_at, updated_at)
+select user_id, count(*) as cnt, 'RECIPE_GOAL' as task, now() as created_at, now() as updated_at
+from tmp_ns_entree_sobe nes where food_type = 'recipe'
+group by user_id
+order by user_id;
+
+drop table if exists tmp_ns_entree_sobe;
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'challenge_bonus_sobe_update' as function_name, now() as created_at, now() as updated_at;
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.challenge_bonus_sobe_update(timestamp without time zone)
+  OWNER TO gfuser;
