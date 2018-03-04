@@ -23,7 +23,7 @@ between case when css.rule_type in ('date_only','date_only_start', 'date_only_co
  where css.attribute_name like 'C18_C%_TASK_1_COUNT'
  order by l.id, css.id;
 
-
+/** task C4_T1  Scan a Food ***/
 insert into css_bonus ( user_id, api_email, list_id, task, created_at, updated_at)
 select  u.id as user_id, us.api_email, lu.list_id, 'Scan_Goal' as task, now() as created_at, now() as updated_at--, cast(us.created_at as timestamp) as created_at 
 from users_scan_food_summary us
@@ -32,6 +32,17 @@ inner join list_users_c18 lu on lu.user_id = u.id
 inner join css_in t on t.id = lu.list_id
 where t.campaign_sequence = 4 and cast(us.created_at as date) >= lu.list_start_date::date + day_start and cast(us.created_at as date) <= lu.list_start_date::date + day_end
 group by us.api_email, u.id, lu.list_id;
+
+/** C5_T2 bonus task create a custom activity **/
+insert into css_bonus (user_id, list_id, task, created_at, updated_at, cnt)
+select  ca.user_id as user_id, lu.list_id, 'Create_Activity' as task, now() as created_at, now() as updated_at, count(*) as cnt--, cast(us.created_at as timestamp) as created_at 
+from custom_activities ca
+inner join list_users_c18 lu on lu.user_id = ca.user_id
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 5 and cast(ca.created_at as date) >= lu.list_start_date::date + day_start and cast(ca.created_at as date) <= lu.list_start_date::date + day_end
+group by ca.user_id, lu.list_id;
+
+
 
 /** calculate powerfueld bonus **/
 drop table if exists tmp_powerfuel;
@@ -61,6 +72,44 @@ from (select distinct(user_id) from tmp_powerfuel
 ) i,
 get_diet_history_by_category_local(i.user_id,  'POWERFUEL')  a -- on i.user_id = a.user_id
 where a.cnt >= 1;
+
+
+
+/** C5_T1 calculate activity goal met **/
+drop table if exists tmp_duration;
+create temp table tmp_duration ( user_id integer, assigned_date date, duration integer, created_at timestamp, updated_at timestamp);
+
+insert into tmp_duration (user_id, assigned_date, duration, created_at, updated_at)
+select ah.user_id, ah.assigned_date, sum(ah.duration) as duration, now() as created_at, now() as updated_at
+from activity_histories_numi2 ah
+where ah.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in t where t.campaign_sequence = 5) st ) 
+and ah.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in t  where t.campaign_sequence = 5 ) ed ) 
+group by ah.user_id, ah.assigned_date;
+
+
+/** C5_T1 get phase template goals **/
+drop table if exists tmp_goal;
+create temp table tmp_goal ( user_id integer, phase_template varchar(255), goal integer, created_at timestamp, updated_at timestamp);
+
+insert into tmp_goal (user_id, phase_template, goal, created_at, updated_at)
+select zz.user_id, zz.value as phase_template, ph.value::integer as goal, now() as created_at, now() as updated_at
+from numi2_phase_templates pt 
+inner join numi2_phase_properties ph on pt.id = ph.phase_template_id
+inner join 
+	(
+		select npp.profile_id, tt.user_id, npp.value from numi2_profile_properties npp 
+		inner join 
+		(select id, user_id from numi2_profiles where user_id in (select distinct(user_id) from tmp_duration)) tt on npp.profile_id = tt.id
+		and npp.key='PHASE_TEMPLATE_KEY'
+	) zz  on pt.key = zz.value where ph.key = 'ACTIVITY_GOAL';
+
+
+insert into css_bonus (user_id, task, cnt,  created_at, updated_at)
+select zz.user_id, 'Activity_Goal' as task, count(*) as cnt,  now() as created_at, now() as updated_at from (
+select td.user_id, td.assigned_date from tmp_duration td
+inner join tmp_goal tg on tg.user_id = td.user_id
+where td.duration >= tg.goal ) zz
+group by zz.user_id;
 
 
 insert into challenge_run_log (function_name, created_at, updated_at)
