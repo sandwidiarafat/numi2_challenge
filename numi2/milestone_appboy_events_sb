@@ -12,37 +12,73 @@ insert into job_log (job_name, start_time, status, created_at, updated_at)
 values ('MILESTONE_EVENTS_SB', timezone('utc', now()), 'INPROCESS',   timezone('utc', now()),   timezone('utc', now()));
 
 
-drop table if exists tmp_milestones_sb;
+drop table if exists tmp_milestones;
 create temp table tmp_milestones_sb ( id integer, user_id integer, attribute_name varchar(255), created_at timestamp);
 
+-- get new milestones created
 insert into tmp_milestones_sb (id, user_id, attribute_name, created_at)
-select ae.id, ae.user_id,  
+select mh.id, mh.user_id,  
 case 
-when ae.event_name = 'MILESTONE_10LBS_LOST' then 'MILESTONE_10_CODE' 
-when ae.event_name = 'MILESTONE_20LBS_LOST' then 'MILESTONE_20_CODE'
-when ae.event_name = 'MILESTONE_30LBS_LOST' then 'MILESTONE_30_CODE'
-when ae.event_name = 'MILESTONE_40LBS_LOST' then 'MILESTONE_40_CODE'
-when ae.event_name = 'MILESTONE_50LBS_LOST' then 'MILESTONE_50_CODE'
-when ae.event_name = 'MILESTONE_60LBS_LOST' then 'MILESTONE_60_CODE'
-when ae.event_name = 'MILESTONE_70LBS_LOST' then 'MILESTONE_70_CODE'
-when ae.event_name = 'MILESTONE_80LBS_LOST' then 'MILESTONE_80_CODE'
-when ae.event_name = 'MILESTONE_90LBS_LOST' then 'MILESTONE_90_CODE'
-when ae.event_name = 'MILESTONE_100LBS_LOST' then 'MILESTONE_100_CODE'
-when ae.event_name = 'MILESTONE_125LBS_LOST' then 'MILESTONE_125_CODE'
-when ae.event_name = 'MILESTONE_150LBS_LOST' then 'MILESTONE_150_CODE'
-when ae.event_name = 'MILESTONE_175LBS_LOST' then 'MILESTONE_175_CODE'
-when ae.event_name = 'MILESTONE_200LBS_LOST' then 'MILESTONE_200_CODE'
-when ae.event_name = 'MILESTONE_GOAL_MET' then 'MILESTONE_GOAL_CODE'
+when mh.milestone_id = 2 then 'MILESTONE_10_CODE' 
+when mh.milestone_id = 4 then 'MILESTONE_20_CODE'
+when mh.milestone_id = 5 then 'MILESTONE_30_CODE'
+when mh.milestone_id = 6 then 'MILESTONE_40_CODE'
+when mh.milestone_id = 7 then 'MILESTONE_50_CODE'
+when mh.milestone_id = 8 then 'MILESTONE_60_CODE'
+when mh.milestone_id = 9 then 'MILESTONE_70_CODE'
+when mh.milestone_id = 10 then 'MILESTONE_80_CODE'
+when mh.milestone_id = 11 then 'MILESTONE_90_CODE'
+when mh.milestone_id = 12 then 'MILESTONE_100_CODE'
+when mh.milestone_id = 13 then 'MILESTONE_125_CODE'
+when mh.milestone_id = 14 then 'MILESTONE_150_CODE'
+when mh.milestone_id = 15 then 'MILESTONE_175_CODE'
+when mh.milestone_id = 16 then 'MILESTONE_200_CODE'
+--when ae.event_name = 'N2_MILESTONE_GOAL' then 'N2_MILESTONE_GOAL_CODE'
 else 'MILESTONE_10_CODE' 
 end as attribute_name,
- created_at  from appboy_inapp_events_tracker ae
-where event_name like 'MILESTONE%'
-and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
+ created_at  from milestone_histories_tracker mh
+--where event_name like 'N2_MILESTONE%'
+where created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS' and end_time is not null)
 order by created_at desc;
 
+-- get new milestone goals created
+insert into tmp_milestones_sb (id, user_id, attribute_name, created_at)
+select ae.id, ae.user_id, 'MILESTONE_GOAL_CODE' as attribute_name,
+created_at  from appboy_inapp_events_tracker ae
+where event_name like 'MILESTONE_GOAL_MET'
+and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS' and end_time is not null)
+order by created_at desc;
 
+-- insert into promo code milestone users
 insert into promo_code_milestone_users_sb (user_id, attribute_name, data_type)
 select tm.user_id, tm.attribute_name, 'String' as data_type from tmp_milestones_sb tm
+except  select user_id, attribute_name, data_type from promo_code_milestone_users_sb;
+
+-- get any previous milestones not assigned a promo code and sent to appboy
+insert into promo_code_milestone_users_sb (user_id, attribute_name, data_type)
+select mh.user_id,  
+case 
+when mh.milestone_id = 2 then 'MILESTONE_10_CODE' 
+when mh.milestone_id = 4 then 'MILESTONE_20_CODE'
+when mh.milestone_id = 5 then 'MILESTONE_30_CODE'
+when mh.milestone_id = 6 then 'MILESTONE_40_CODE'
+when mh.milestone_id = 7 then 'MILESTONE_50_CODE'
+when mh.milestone_id = 8 then 'MILESTONE_60_CODE'
+when mh.milestone_id = 9 then 'MILESTONE_70_CODE'
+when mh.milestone_id = 10 then 'MILESTONE_80_CODE'
+when mh.milestone_id = 11 then 'MILESTONE_90_CODE'
+when mh.milestone_id = 12 then 'MILESTONE_100_CODE'
+when mh.milestone_id = 13 then 'MILESTONE_125_CODE'
+when mh.milestone_id = 14 then 'MILESTONE_150_CODE'
+when mh.milestone_id = 15 then 'MILESTONE_175_CODE'
+when mh.milestone_id = 16 then 'MILESTONE_200_CODE'
+--when ae.event_name = 'N2_MILESTONE_GOAL' then 'N2_MILESTONE_GOAL_CODE'
+else 'MILESTONE_10_CODE' 
+end as attribute_name,
+'String' as data_type  from milestone_histories_tracker mh
+where mh.user_id in (
+select distinct(user_id) from tmp_milestones_sb
+)
 except  select user_id, attribute_name, data_type from promo_code_milestone_users_sb;
 
 
@@ -78,9 +114,8 @@ update job_log
 set end_time = timezone('utc', now()), status = 'SUCCESS'
 where end_time is null and job_name = 'MILESTONE_EVENTS_SB';
 
+
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.milestone_appboy_events_sb()
-  OWNER TO orangeuser;
