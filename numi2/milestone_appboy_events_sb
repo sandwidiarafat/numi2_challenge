@@ -1,0 +1,86 @@
+-- Function: public.milestone_appboy_events_sb()
+
+-- DROP FUNCTION public.milestone_appboy_events_sb();
+
+CREATE OR REPLACE FUNCTION public.milestone_appboy_events_sb()
+  RETURNS void AS
+$BODY$
+BEGIN
+
+
+insert into job_log (job_name, start_time, status, created_at, updated_at) 
+values ('MILESTONE_EVENTS_SB', timezone('utc', now()), 'INPROCESS',   timezone('utc', now()),   timezone('utc', now()));
+
+
+drop table if exists tmp_milestones_sb;
+create temp table tmp_milestones_sb ( id integer, user_id integer, attribute_name varchar(255), created_at timestamp);
+
+insert into tmp_milestones_sb (id, user_id, attribute_name, created_at)
+select ae.id, ae.user_id,  
+case 
+when ae.event_name = 'MILESTONE_10LBS_LOST' then 'MILESTONE_10_CODE' 
+when ae.event_name = 'MILESTONE_20LBS_LOST' then 'MILESTONE_20_CODE'
+when ae.event_name = 'MILESTONE_30LBS_LOST' then 'MILESTONE_30_CODE'
+when ae.event_name = 'MILESTONE_40LBS_LOST' then 'MILESTONE_40_CODE'
+when ae.event_name = 'MILESTONE_50LBS_LOST' then 'MILESTONE_50_CODE'
+when ae.event_name = 'MILESTONE_60LBS_LOST' then 'MILESTONE_60_CODE'
+when ae.event_name = 'MILESTONE_70LBS_LOST' then 'MILESTONE_70_CODE'
+when ae.event_name = 'MILESTONE_80LBS_LOST' then 'MILESTONE_80_CODE'
+when ae.event_name = 'MILESTONE_90LBS_LOST' then 'MILESTONE_90_CODE'
+when ae.event_name = 'MILESTONE_100LBS_LOST' then 'MILESTONE_100_CODE'
+when ae.event_name = 'MILESTONE_125LBS_LOST' then 'MILESTONE_125_CODE'
+when ae.event_name = 'MILESTONE_150LBS_LOST' then 'MILESTONE_150_CODE'
+when ae.event_name = 'MILESTONE_175LBS_LOST' then 'MILESTONE_175_CODE'
+when ae.event_name = 'MILESTONE_200LBS_LOST' then 'MILESTONE_200_CODE'
+when ae.event_name = 'MILESTONE_GOAL_MET' then 'MILESTONE_GOAL_CODE'
+else 'MILESTONE_10_CODE' 
+end as attribute_name,
+ created_at  from appboy_inapp_events_tracker ae
+where event_name like 'MILESTONE%'
+and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
+order by created_at desc;
+
+
+insert into promo_code_milestone_users_sb (user_id, attribute_name, data_type)
+select tm.user_id, tm.attribute_name, 'String' as data_type from tmp_milestones_sb tm
+except  select user_id, attribute_name, data_type from promo_code_milestone_users_sb;
+
+
+update promo_code_milestone_users_sb zz
+set promo_code = cc.promo_code
+--select * 
+from  (
+	select aa.user_id, aa.attribute_name, bb.promo_code, bb.row_num from 
+	(
+		select user_id, attribute_name, promo_code, row_number() over (partition by attribute_name order by user_id) as row_num from promo_code_milestone_users_sb where promo_code is null ) aa
+		inner join (
+		select id, attribute_name, promo_code, row_number() over (partition by attribute_name order by id) as row_num from promo_code_milestones_sb where user_id is null ) bb on aa.row_num = bb.row_num 
+		and aa.attribute_name = bb.attribute_name 
+	) cc
+where zz.user_id = cc.user_id and zz.attribute_name = cc.attribute_name;
+
+update promo_code_milestones_sb pc
+set user_id = pcu.user_id, updated_at = timezone('utc', now()), date_sent = timezone('utc', now())
+--select *
+from promo_code_milestone_users_sb pcu
+where pcu.attribute_name = pc.attribute_name and pcu.promo_code = pc.promo_code 
+and pc.user_id is null;
+
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select user_id, attribute_name, data_type, promo_code as data_value, 9999 as campaign_stream_steps_id, 9999 as list_users_id from promo_code_milestone_users_sb where date_sent is null
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
+
+update promo_code_milestone_users_sb
+set date_sent = timezone('utc', now())
+where date_sent is null;
+
+update job_log
+set end_time = timezone('utc', now()), status = 'SUCCESS'
+where end_time is null and job_name = 'MILESTONE_EVENTS_SB';
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.milestone_appboy_events_sb()
+  OWNER TO orangeuser;
