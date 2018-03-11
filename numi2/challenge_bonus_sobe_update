@@ -8,7 +8,7 @@ $BODY$
 BEGIN
 
 
-truncate table tmp_ns_entree_sobe;
+truncate table css_in_sobe;
 truncate table css_bonus_sobe;
 
 insert into css_in_sobe (id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff)
@@ -75,16 +75,21 @@ inner join food_catalogs fc on nes.consumable_id = fc.id
 where nes.consumable_type = 'FoodCatalog' and fc.food_type = 'recipe');
 
 insert into css_bonus_sobe (user_id, cnt, task,  created_at, updated_at)
-select a.user_id, count(*) as cnt,  'SB_ENTREE_GOAL' as task, now() as created_at, now() as updated_at
+select b.user_id, count(*) as cnt,  'SB_ENTREE_GOAL' as task, now() as created_at, now() as updated_at
 from 
-(
-select  user_id from tmp_ns_entree_sobe where food_category = 'sb_entree'
-union all
-select user_id from (
-select id,user_id, json_array_elements(food_categories::json) as dtl from tmp_ns_entree_sobe where consumable_type in ('FoodCatalog','FoodBrand') ) tt
-where dtl->>'category' = 'sb_entree'  ) a
-group by user_id
-order by user_id;
+	(
+	select a.user_id, a.assigned_date, count(*) as cnt from 
+		(	
+		select  user_id, assigned_date from tmp_ns_entree_sobe where food_category = 'sb_entree' --and user_id = 10
+		union all
+		select user_id, assigned_date from (
+		select id,user_id, assigned_date, json_array_elements(food_categories::json) as dtl from tmp_ns_entree_sobe where consumable_type in ('FoodCatalog','FoodBrand') ) tt
+		where dtl->>'category' = 'sb_entree' --and user_id = 10
+		) a
+	group by a.user_id, a.assigned_date
+	) b
+group by b.user_id
+order by b.user_id;
 
 insert into css_bonus_sobe (user_id, cnt, task,  created_at, updated_at)
 select user_id, count(*) as cnt, 'RECIPE_GOAL' as task, now() as created_at, now() as updated_at
