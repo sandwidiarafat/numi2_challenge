@@ -97,7 +97,70 @@ from tmp_ns_entree_sobe nes where food_type = 'recipe'
 group by user_id
 order by user_id;
 
+/** tmp sb_healthyfat C5_T1**/
+drop table if exists tmp_ns_healthyfats_sobe;
+create temp table tmp_ns_healthyfats_sobe ( id integer, user_id integer, assigned_date date, consumable_id integer, consumable_type varchar(255),  created_at timestamp, food_categories jsonb, food_type varchar(255), food_category varchar(255));
+
+insert into tmp_ns_healthyfats_sobe (id, user_id, assigned_date, consumable_id, consumable_type,  created_at,  food_categories)
+select dh.id, dh.user_id, dh.assigned_date, dh.consumable_id, dh.consumable_type,  dh.created_at,  dh.food_categories
+from diet_histories_tracker dh 
+where dh.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in_sobe t where t.campaign_sequence = 5) st )
+and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in_sobe t  where t.campaign_sequence = 5) ed ) 
+and dh.deleted_at is null;
+
+create index "idx_tmp_ns_healthyfats_sobe_user_id" on tmp_ns_healthyfats_sobe using btree(user_id);
+
+delete from tmp_ns_healthyfats_sobe
+where user_id not in 
+(select lu.user_id from  list_users_c18_sobe lu
+inner join css_in_sobe t on t.id = lu.list_id
+where t.campaign_sequence = 5 );
+
+create index "idx_tmp_ns_healthyfats_sobe_consumable_id" on tmp_ns_healthyfats_sobe using btree(consumable_id);
+create index "idx_tmp_ns_healthyfats_sobe_consumable_type" on tmp_ns_healthyfats_sobe using btree(consumable_type);
+create index "idx_tmp_ns_healthyfats_sobe_consumable_food_categories" on tmp_ns_healthyfats_sobe using btree(food_categories);
+
+--/*
+-- get quicklog food category
+update tmp_ns_healthyfats_sobe nes
+set food_category = ql.food_category
+from quick_logs ql
+where nes.consumable_id = ql.id
+and nes.consumable_type = 'QuickLog';
+--*/
+
+-- update sb_healthyfat for food_category
+update tmp_ns_healthyfats_sobe nes
+set food_category = 'sb_healthyfat'
+where nes.id in (
+select zz.id from (
+select nes.id, nes.consumable_id from tmp_ns_healthyfats_sobe nes
+left join  (
+select id, json_array_elements(food_categories::json) from tmp_ns_healthyfats_sobe where consumable_type in ('FoodCatalog') ) tt on nes.id = tt.id
+where nes.consumable_type in ('FoodCatalog') and  tt.id is null ) zz
+inner join food_catalogs fc on zz.consumable_id = fc.id and fc.food_sb_healthyfat > 0 );
+
+-- count # of distinct healthy fats
+insert into css_bonus_sobe (user_id, cnt, task,  created_at, updated_at)
+select b.user_id, count(*) as cnt,  'SB_HEALTHYFAT_GOAL' as task, now() as created_at, now() as updated_at
+from 
+	(
+	select user_id, consumable_id, consumable_type, count(*) as cnt from 
+		(	
+		select  user_id, consumable_id, consumable_type, assigned_date from tmp_ns_healthyfats_sobe where food_category = 'sb_healthyfat' --and user_id = 10
+		union all
+		select user_id, consumable_id, consumable_type, assigned_date from (
+		select id, user_id, consumable_id, consumable_type, assigned_date, json_array_elements(food_categories::json) as dtl from tmp_ns_healthyfats_sobe where consumable_type in ('FoodCatalog','FoodBrand') ) tt
+		where dtl->>'category' = 'sb_healthyfat' --and user_id = 10
+		) a
+	group by user_id, consumable_id, consumable_type
+	) b
+group by b.user_id
+order by b.user_id;
+
+
 drop table if exists tmp_ns_entree_sobe;
+drop table if exists tmp_ns_healthyfats_sobe;
 
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_bonus_sobe_update' as function_name, now() as created_at, now() as updated_at;
