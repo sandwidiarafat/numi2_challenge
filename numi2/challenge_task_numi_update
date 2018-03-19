@@ -515,7 +515,7 @@ set promo_code = tt.promo_code
 from (
 select ap.user_id, ap.attribute_name, pc.promo_code from (select user_id, attribute_name, campaign_stream_steps_id, list_users_id, row_number() over (order by user_id) as row_num from promo_code_users 
 where attribute_name = 'C18_C5_TASK_1_CODE' and promo_code is null) ap
-inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes_sb where attribute_name = 'C18_C1_TASK_1_CODE' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
+inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes where attribute_name = 'C18_C5_TASK_1_CODE' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
 where aa.user_id = tt.user_id and aa.attribute_name = tt.attribute_name;
 
 update promo_codes pc
@@ -524,6 +524,16 @@ from promo_code_users pcu
 where pcu.attribute_name = pc.attribute_name and pcu.promo_code = pc.promo_code 
 and pc.user_id is null;
 
+
+/* step 3 - send appboy user events ********************/
+
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select user_id, attribute_name, data_type, promo_code as data_value, campaign_stream_steps_id, list_users_id from promo_code_users where date_sent is null
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events ;
+
+update promo_code_users
+set date_sent = now()
+where date_sent is null;
 
 /** end **/
 
