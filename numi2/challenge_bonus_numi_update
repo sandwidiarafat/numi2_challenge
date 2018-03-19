@@ -112,6 +112,16 @@ where td.duration >= tg.goal ) zz
 group by zz.user_id;
 
 
+/** C6_T2 get phase template goals **/
+insert into css_bonus (user_id, list_id, task, created_at, updated_at, cnt)
+select  r.user_id as user_id, lu.list_id, 'Water_Reminder' as task, now() as created_at, now() as updated_at, 1 as cnt--, cast(us.created_at as timestamp) as created_at 
+from numi2_reminders r 
+inner join list_users_c18 lu on lu.user_id = r.user_id
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 6 and cast(r.created_at as date) <= lu.list_start_date::date + day_end
+and r.reminder_type_id = 3 and r.deleted_at is null;
+
+/** insert updates **/
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_bonus_numi_update' as function_name, now() as created_at, now() as updated_at;
 
