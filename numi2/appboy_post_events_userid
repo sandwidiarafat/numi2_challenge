@@ -1,0 +1,23 @@
+-- Function: public.appboy_post_events_userid()
+
+-- DROP FUNCTION public.appboy_post_events_userid();
+
+CREATE OR REPLACE FUNCTION public.appboy_post_events_userid()
+  RETURNS void AS
+$BODY$
+
+BEGIN
+
+update appboy_post_events ape
+set user_id = u.id
+from users u 
+where ape.email = u.email and ape.date_processed is null;
+
+
+END;
+
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.appboy_post_events_userid()
+  OWNER TO gfuser;
