@@ -20,6 +20,16 @@ between case when css.rule_type in ('date_only','date_only_start', 'date_only_co
  case when css.rule_type in ('date_only','date_only_start', 'date_only_complete') then css.day_end - 1 else day_end end and css.campaign_id = 1 and l.campaign_id = 1
  where css.attribute_name like 'SB_C18_C%_TASK_1_COUNT'
  order by l.id, css.id;
+ 
+/** task C5_T2  Scan a Food ***/
+insert into css_bonus_sobe  ( user_id, api_email, list_id, task, created_at, updated_at)
+select  u.id as user_id, us.api_email, lu.list_id, 'Scan_Goal_Sobe' as task, now() as created_at, now() as updated_at--, cast(us.created_at as timestamp) as created_at 
+from users_scan_food_summary_sb us
+inner join users_tracker u on us.api_email = u.email
+inner join list_users_c18_sobe lu on lu.user_id = u.id
+inner join css_in_sobe t on t.id = lu.list_id
+where t.campaign_sequence = 5 and cast(us.created_at as date) >= lu.list_start_date::date + day_start and cast(us.created_at as date) <= lu.list_start_date::date + day_end
+group by us.api_email, u.id, lu.list_id;
 
 /** tmp sb_entrees and recipes **/
 drop table if exists tmp_ns_entree_sobe;
