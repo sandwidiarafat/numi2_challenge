@@ -121,7 +121,49 @@ inner join css_in t on t.id = lu.list_id
 where t.campaign_sequence = 6 and cast(r.created_at as date) <= lu.list_start_date::date + day_end
 and r.reminder_type_id = 3 and r.deleted_at is null;
 
-/** insert updates **/
+
+/******************* C7_T1 calculate vegetable bonus **************************************/
+drop table if exists tmp_vegetable;
+create temp table tmp_vegetable ( id integer, user_id integer, consumable_id integer, consumable_type varchar(255), assigned_date date, created_at timestamp, food_categories jsonb);
+
+insert into tmp_vegetable (id, user_id, consumable_id, consumable_type, assigned_date, created_at, food_categories)
+select dh.id, dh.user_id, dh.consumable_id, dh.consumable_type, dh.assigned_date, dh.created_at, dh.food_categories
+from diet_histories_numi2 dh
+where dh.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in t where t.campaign_sequence = 7) st ) 
+and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in t  where t.campaign_sequence = 7) ed ) 
+and dh.deleted_at is null;
+
+
+delete from tmp_vegetable
+where user_id not in 
+(select lu.user_id from  list_users_c18 lu
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 7);
+
+create index "idx_tmp_vegetable_user_id" on tmp_vegetable using btree(user_id);
+create index "idx_tmp_vegetable_food_categories" on tmp_vegetable using btree(food_categories);
+
+insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
+select a.user_id, a.cnt,  'Vegetable_Goal' as task, now() as created_at, now() as updated_at
+--select *
+from (select distinct(user_id) from tmp_vegetable
+) i,
+get_diet_history_by_category_local_vegetable(i.user_id,  'VEGETABLES')  a -- on i.user_id = a.user_id
+where a.cnt >= 1;
+
+
+/*********************** C7_T2 set a vegetable reminder **********************************************/
+insert into css_bonus (user_id, list_id, task, created_at, updated_at, cnt)
+select  r.user_id as user_id, lu.list_id, 'Vegetable_Reminder' as task, now() as created_at, now() as updated_at, 1 as cnt--, cast(us.created_at as timestamp) as created_at 
+from numi2_reminders r 
+inner join list_users_c18 lu on lu.user_id = r.user_id
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 7 and cast(r.created_at as date) <= lu.list_start_date::date + day_end
+and r.reminder_type_id = 1 and r.meal_occasion_id = 7 and r.deleted_at is null;
+
+
+
+/************************ insert updates **************************/
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_bonus_numi_update' as function_name, now() as created_at, now() as updated_at;
 
