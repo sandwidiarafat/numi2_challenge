@@ -453,16 +453,16 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 
 select t1.user_id, t2.attribute_name, t2.data_type, t2.data_value, t2.campaign_stream_steps_id, t2.list_users_id 
 from (
-select distinct(user_id) from (
+select user_id from (
 		select user_id from appboy_user_events_sb where attribute_name = 'SB_C18_C7_TASK_2_COUNT' and cast(data_value as integer) >=7
 		union all
-		select user_id from appboy_user_events_sb where attribute_name = 'SB_C18_C7_TASK_2B_COUNT' and cast(data_value as integer) >=7 )zz
-	) t1
+		select user_id from appboy_user_events_sb where attribute_name = 'SB_C18_C7_TASK_2B_COUNT' and cast(data_value as integer) >=7 )zz group by user_id having count(*) > 1
+	) t1 
 inner join
 (
 select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from list_users_c18_sobe lu 
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'result_status_success' and campaign_sequence = 7 and task_number = 2
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-04-10'::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'result_status_success' and campaign_sequence = 7 and task_number = 2
 where  lu.campaign_id = 1 )  t2 on t1.user_id = t2.user_id
 except   select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'result_status_success' and campaign_sequence = 7 and task_number = 2 and css.campaign_id = 1; 
