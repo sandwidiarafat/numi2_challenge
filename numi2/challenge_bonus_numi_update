@@ -1,3 +1,5 @@
+
+
 -- Function: public.challenge_bonus_numi_update(timestamp without time zone)
 
 -- DROP FUNCTION public.challenge_bonus_numi_update(timestamp without time zone);
@@ -8,19 +10,19 @@ $BODY$
 BEGIN
 
 
-
 truncate table css_in;
 
 truncate table css_bonus;
 
 insert into css_in (id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff)
-  select l.id, l.list_start_date, css.id as campaign_stream_steps_id, css.day_start, css.day_end, 
+
+select l.id, l.list_start_date, css.id as campaign_stream_steps_id, css.day_start, css.day_end, 
 css.campaign_sequence, datediff('day', l.list_start_date::date, _datetime::date) as date_diff
 from lists l
 inner join campaign_stream_steps css on datediff('day', l.list_start_date::date, _datetime::date)  
 between case when css.rule_type in ('date_only','date_only_start', 'date_only_complete') then day_start - 1 else day_start end and
  case when css.rule_type in ('date_only','date_only_start', 'date_only_complete') then css.day_end - 1 else day_end end and css.campaign_id = 3 and l.campaign_id = 3
- where css.attribute_name like 'C18_C%_TASK_1_COUNT'
+ where css.attribute_name like 'C18_C%_TASK_1_COUNT%' and css.campaign_stream_sequence = 1
  order by l.id, css.id;
 
 /** task C4_T1  Scan a Food ***/
@@ -44,7 +46,7 @@ group by ca.user_id, lu.list_id;
 
 
 
-/** calculate powerfueld bonus **/
+/********************** calculate powerfuel bonus ********************************/
 drop table if exists tmp_powerfuel;
 create temp table tmp_powerfuel ( id integer, user_id integer, consumable_id integer, consumable_type varchar(255), assigned_date date, created_at timestamp, food_categories jsonb);
 
@@ -72,8 +74,6 @@ from (select distinct(user_id) from tmp_powerfuel
 ) i,
 get_diet_history_by_category_local(i.user_id,  'POWERFUEL')  a -- on i.user_id = a.user_id
 where a.cnt >= 1;
-
-
 
 /** C5_T1 calculate activity goal met **/
 drop table if exists tmp_duration;
@@ -161,7 +161,95 @@ inner join css_in t on t.id = lu.list_id
 where t.campaign_sequence = 7 and cast(r.created_at as date) <= lu.list_start_date::date + day_end
 and r.reminder_type_id = 1 and r.meal_occasion_id = 7 and r.deleted_at is null;
 
+/******************* C8_T2_FOOD vegetable goal is met for the day  need 14 out of 21 **************************************/
+drop table if exists tmp_vegetable_8;
+create temp table tmp_vegetable_8 ( id integer, user_id integer, consumable_id integer, consumable_type varchar(255), assigned_date date, created_at timestamp, food_categories jsonb);
 
+insert into tmp_vegetable_8 (id, user_id, consumable_id, consumable_type, assigned_date, created_at, food_categories)
+select dh.id, dh.user_id, dh.consumable_id, dh.consumable_type, dh.assigned_date, dh.created_at, dh.food_categories
+from diet_histories_numi2 dh
+where dh.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in t where t.campaign_sequence = 8) st ) 
+and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in t  where t.campaign_sequence = 8) ed ) 
+and dh.deleted_at is null;
+
+create index "idx_tmp_vegetable_8_user_id" on tmp_vegetable_8 using btree(user_id);
+/*
+delete from tmp_vegetable_8
+where user_id not in
+(select lu.user_id from  list_users_c18 lu
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 8);
+*/
+
+create index "idx_tmp_vegetable_8_food_categories" on tmp_vegetable_8 using btree(food_categories);
+
+/*
+insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
+select a.user_id, a.cnt,  'Vegetable_Goal_8' as task, now() as created_at, now() as updated_at
+--select *
+from (select distinct(user_id) from tmp_vegetable_8
+) i,
+get_diet_history_by_category_local_vegetable_8(i.user_id,  'VEGETABLES')  a -- on i.user_id = a.user_id
+where a.cnt >= 1;
+*/
+
+insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
+select a.user_id, a.cnt,  'Vegetable_Goal_8' as task, now() as created_at, now() as updated_at
+--select *
+from (select lu.user_id from  list_users_c18 lu
+inner join css_in t on t.id = lu.list_id
+where t.campaign_sequence = 8
+) i,
+get_diet_history_by_category_local_vegetable_8(i.user_id,  'VEGETABLES')  a -- on i.user_id = a.user_id
+where a.cnt >= 1;
+
+/** C8_T2 calculate activity goal met **/
+drop table if exists tmp_duration_8;
+create temp table tmp_duration_8 ( user_id integer, assigned_date date, duration integer, created_at timestamp, updated_at timestamp);
+
+insert into tmp_duration_8 (user_id, assigned_date, duration, created_at, updated_at)
+select ah.user_id, ah.assigned_date, sum(ah.duration) as duration, now() as created_at, now() as updated_at
+from activity_histories_numi2 ah
+where ah.assigned_date >= (select min(start_date) from (select t.list_start_date + t.day_start -1 as start_date from css_in t where t.campaign_sequence = 8) st ) 
+and ah.assigned_date <= (select max(end_date) from (select t.list_start_date + t.day_end -1 as end_date from css_in t  where t.campaign_sequence = 8 ) ed ) 
+group by ah.user_id, ah.assigned_date;
+
+
+/** C8_T2 get phase template goals **/
+drop table if exists tmp_goal_8;
+create temp table tmp_goal_8 ( user_id integer, phase_template varchar(255), goal integer, created_at timestamp, updated_at timestamp);
+
+insert into tmp_goal_8 (user_id, phase_template, goal, created_at, updated_at)
+select zz.user_id, zz.value as phase_template, ph.value::integer as goal, now() as created_at, now() as updated_at
+from numi2_phase_templates pt 
+inner join numi2_phase_properties ph on pt.id = ph.phase_template_id
+inner join 
+	(
+		select npp.profile_id, tt.user_id, npp.value from numi2_profile_properties npp 
+		inner join 
+		(select id, user_id from numi2_profiles where user_id in (select distinct(user_id) from tmp_duration_8)) tt on npp.profile_id = tt.id
+		and npp.key='PHASE_TEMPLATE_KEY'
+	) zz  on pt.key = zz.value where ph.key = 'ACTIVITY_GOAL';
+
+
+insert into css_bonus (user_id, task, cnt,  created_at, updated_at)
+select zz.user_id, 'Activity_Goal_8' as task, count(*) as cnt,  now() as created_at, now() as updated_at from (
+select td.user_id, td.assigned_date from tmp_duration_8 td
+inner join tmp_goal_8 tg on tg.user_id = td.user_id
+inner join (
+	select lu.user_id from  list_users_c18 lu
+	inner join css_in t on t.id = lu.list_id
+	where t.campaign_sequence = 8 ) tt on tt.user_id = td.user_id
+where td.duration >= tg.goal ) zz
+group by zz.user_id;
+
+drop table tmp_powerfuel;
+drop table tmp_duration;
+drop table tmp_goal;
+drop table tmp_vegetable;
+drop table tmp_vegetable_8;
+drop table tmp_duration_8;
+drop table tmp_goal_8;
 
 /************************ insert updates **************************/
 insert into challenge_run_log (function_name, created_at, updated_at)
@@ -172,5 +260,3 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.challenge_bonus_numi_update(timestamp without time zone)
-  OWNER TO gfuser;
