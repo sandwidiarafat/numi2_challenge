@@ -66,6 +66,8 @@ where t.campaign_sequence = 4 );
 create index "idx_tmp_powerfuel_user_id" on tmp_powerfuel using btree(user_id);
 create index "idx_tmp_powerfuel_food_categories" on tmp_powerfuel using btree(food_categories);
 
+analyze tmp_powerfuel;
+
 insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
 select a.user_id, a.cnt,  'Powerfueld_Goal' as task, now() as created_at, now() as updated_at
 --select *
@@ -149,6 +151,8 @@ where t.campaign_sequence = 7);
 create index "idx_tmp_vegetable_user_id" on tmp_vegetable using btree(user_id);
 create index "idx_tmp_vegetable_food_categories" on tmp_vegetable using btree(food_categories);
 
+analyze tmp_vegetable;
+
 insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
 select a.user_id, a.cnt,  'Vegetable_Goal' as task, now() as created_at, now() as updated_at
 --select *
@@ -190,6 +194,8 @@ where t.campaign_sequence = 8);
 */
 
 create index "idx_tmp_vegetable_8_food_categories" on tmp_vegetable_8 using btree(food_categories);
+
+analyze tmp_vegetable_8;
 
 /*
 insert into css_bonus (user_id, cnt, task,  created_at, updated_at)
