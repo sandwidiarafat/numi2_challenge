@@ -261,10 +261,16 @@ drop table tmp_goal_8;
 
 /************************ insert updates **************************/
 insert into challenge_run_log (function_name, created_at, updated_at)
-select 'challenge_bonus_numi_update' as function_name, now() as created_at, now() as updated_at;
+select 'challenge_bonus_numi_update' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
+
+update challenge_run_log
+set updated_at = clock_timestamp()
+where id in (select id from challenge_run_log where function_name = 'challenge_bonus_numi_update' order by created_at desc limit 1);
 
 
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
+ALTER FUNCTION public.challenge_bonus_numi_update(timestamp without time zone)
+  OWNER TO gfuser;
