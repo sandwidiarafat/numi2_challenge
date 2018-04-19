@@ -1,3 +1,5 @@
+
+
 -- Function: public.milestone_appboy_events_sb()
 
 -- DROP FUNCTION public.milestone_appboy_events_sb();
@@ -12,7 +14,7 @@ insert into job_log (job_name, start_time, status, created_at, updated_at)
 values ('MILESTONE_EVENTS_SB', timezone('utc', now()), 'INPROCESS',   timezone('utc', now()),   timezone('utc', now()));
 
 
-drop table if exists tmp_milestones;
+drop table if exists tmp_milestones_sb;
 create temp table tmp_milestones_sb ( id integer, user_id integer, attribute_name varchar(255), created_at timestamp);
 
 -- get new milestones created
@@ -34,19 +36,22 @@ when mh.milestone_id = 14 then 'MILESTONE_150_CODE'
 when mh.milestone_id = 15 then 'MILESTONE_175_CODE'
 when mh.milestone_id = 16 then 'MILESTONE_200_CODE'
 --when ae.event_name = 'N2_MILESTONE_GOAL' then 'N2_MILESTONE_GOAL_CODE'
-else 'MILESTONE_10_CODE' 
+--else 'MILESTONE_10_CODE' 
 end as attribute_name,
  created_at  from milestone_histories_tracker mh
 --where event_name like 'N2_MILESTONE%'
-where created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS' and end_time is not null)
+where created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
+and milestone_id not in (1,3)
 order by created_at desc;
+
+--select * from milestone_histories_tracker where user_id = 10391
 
 -- get new milestone goals created
 insert into tmp_milestones_sb (id, user_id, attribute_name, created_at)
 select ae.id, ae.user_id, 'MILESTONE_GOAL_CODE' as attribute_name,
 created_at  from appboy_inapp_events_tracker ae
 where event_name like 'MILESTONE_GOAL_MET'
-and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS' and end_time is not null)
+and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
 order by created_at desc;
 
 -- insert into promo code milestone users
@@ -73,10 +78,10 @@ when mh.milestone_id = 14 then 'MILESTONE_150_CODE'
 when mh.milestone_id = 15 then 'MILESTONE_175_CODE'
 when mh.milestone_id = 16 then 'MILESTONE_200_CODE'
 --when ae.event_name = 'N2_MILESTONE_GOAL' then 'N2_MILESTONE_GOAL_CODE'
-else 'MILESTONE_10_CODE' 
+--else 'MILESTONE_10_CODE' 
 end as attribute_name,
-'String' as data_type  from milestone_histories_tracker mh
-where mh.user_id in (
+'String' as data_type  from milestone_histories_tracker mh where mh.milestone_id not in (1,3)
+and mh.user_id in (
 select distinct(user_id) from tmp_milestones_sb
 )
 except  select user_id, attribute_name, data_type from promo_code_milestone_users_sb;
@@ -102,9 +107,36 @@ from promo_code_milestone_users_sb pcu
 where pcu.attribute_name = pc.attribute_name and pcu.promo_code = pc.promo_code 
 and pc.user_id is null;
 
+
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select user_id, attribute_name, data_type, promo_code as data_value, 9999 as campaign_stream_steps_id, 9999 as list_users_id from promo_code_milestone_users_sb where date_sent is null
 except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
+
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select mh.user_id,  
+case 
+when mh.attribute_name = 'MILESTONE_10_CODE' then 'MILESTONE_10_CODE_DATE' 
+when mh.attribute_name = 'MILESTONE_20_CODE' then 'MILESTONE_20_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_30_CODE' then 'MILESTONE_30_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_40_CODE' then 'MILESTONE_40_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_50_CODE' then 'MILESTONE_50_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_60_CODE' then 'MILESTONE_60_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_70_CODE' then 'MILESTONE_70_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_80_CODE' then 'MILESTONE_80_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_90_CODE' then 'MILESTONE_90_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_100_CODE' then 'MILESTONE_100_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_125_CODE' then 'MILESTONE_125_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_150_CODE' then 'MILESTONE_150_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_175_CODE' then 'MILESTONE_175_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_200_CODE' then 'MILESTONE_200_CODE_DATE'
+end as attribute_name,
+'String' as data_type, 
+to_char((created_at::date + 7), 'MM /DD /YYYY')  as data_value, 9998 as campaign_stream_steps_id, 9999 as list_users_id
+from tmp_milestones_sb mh
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
+
+
+drop table tmp_milestones_sb;
 
 update promo_code_milestone_users_sb
 set date_sent = timezone('utc', now())
