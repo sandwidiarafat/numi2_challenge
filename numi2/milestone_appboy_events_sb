@@ -54,6 +54,8 @@ where event_name like 'MILESTONE_GOAL_MET'
 and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
 order by created_at desc;
 
+--select * from tmp_milestones_sb
+
 -- insert into promo code milestone users
 insert into promo_code_milestone_users_sb (user_id, attribute_name, data_type)
 select tm.user_id, tm.attribute_name, 'String' as data_type from tmp_milestones_sb tm
@@ -129,6 +131,7 @@ when mh.attribute_name = 'MILESTONE_125_CODE' then 'MILESTONE_125_CODE_DATE'
 when mh.attribute_name = 'MILESTONE_150_CODE' then 'MILESTONE_150_CODE_DATE'
 when mh.attribute_name = 'MILESTONE_175_CODE' then 'MILESTONE_175_CODE_DATE'
 when mh.attribute_name = 'MILESTONE_200_CODE' then 'MILESTONE_200_CODE_DATE'
+when mh.attribute_name = 'MILESTONE_GOAL_CODE' then 'MILESTONE_GOAL_CODE_DATE'
 end as attribute_name,
 'String' as data_type, 
 to_char((created_at::date + 7), 'MM /DD /YYYY')  as data_value, 9998 as campaign_stream_steps_id, 9999 as list_users_id
