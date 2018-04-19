@@ -104,6 +104,32 @@ insert into appboy_user_events (user_id, attribute_name, data_type, data_value, 
 select user_id, attribute_name, data_type, promo_code as data_value, 9999 as campaign_stream_steps_id, 9999 as list_users_id from promo_code_milestone_users where date_sent is null
 except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events ;
 
+
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select mh.user_id,  
+case 
+when mh.attribute_name = 'N2_MILESTONE_10_CODE' then 'N2_MILESTONE_10_CODE_DATE' 
+when mh.attribute_name = 'N2_MILESTONE_20_CODE' then 'N2_MILESTONE_20_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_30_CODE' then 'N2_MILESTONE_30_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_40_CODE' then 'N2_MILESTONE_40_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_50_CODE' then 'N2_MILESTONE_50_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_60_CODE' then 'N2_MILESTONE_60_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_70_CODE' then 'N2_MILESTONE_70_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_80_CODE' then 'N2_MILESTONE_80_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_90_CODE' then 'N2_MILESTONE_90_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_100_CODE' then 'N2_MILESTONE_100_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_125_CODE' then 'N2_MILESTONE_125_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_150_CODE' then 'N2_MILESTONE_150_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_175_CODE' then 'N2_MILESTONE_175_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_200_CODE' then 'N2_MILESTONE_200_CODE_DATE'
+when mh.attribute_name = 'N2_MILESTONE_GOAL_CODE' then 'N2_MILESTONE_GOAL_CODE_DATE'
+end as attribute_name,
+'String' as data_type, 
+to_char((created_at::date + 7), 'MM /DD /YYYY')  as data_value, 9998 as campaign_stream_steps_id, 9999 as list_users_id
+from tmp_milestones mh
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events ;
+
+
 update promo_code_milestone_users
 set date_sent = timezone('utc', now())
 where date_sent is null;
@@ -117,5 +143,3 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.milestone_appboy_events()
-  OWNER TO gfuser;
