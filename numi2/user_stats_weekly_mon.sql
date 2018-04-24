@@ -1,5 +1,3 @@
-
-
 -- Function: public.user_stats_weekly_update_mon(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_mon(timestamp without time zone);
