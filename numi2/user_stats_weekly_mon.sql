@@ -1,4 +1,3 @@
--- Function: public.user_stats_weekly_update_mon(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_mon(timestamp without time zone);
 
@@ -33,6 +32,7 @@ INSERT INTO
   consumed_total_items_logged,
   active_days_entries,
   active_total_duration,
+  days_logged,
   created_at,
   updated_at
 )
@@ -44,7 +44,7 @@ td.a as first_day_of_week,
 weight.lbs_lost as weight_lbs_lost, weight.wh_entries as weight_entries, water.water_consumed, 
 water.wtr_entries as water_total_entries, water.days_wtr_entries as water_days_entries, water.days_met_goal as water_days_met_goal,
 consumed.days_dh_entries as consumed_days_entries, consumed.total_items_logged as consumed_total_items_logged,
-active.times_per_week_activities_logged as active_days_entries, active.wkly_duration as active_tot_duration,
+active.times_per_week_activities_logged as active_days_entries, active.wkly_duration as active_tot_duration, logging.days_logged,
 now() as created_at, now() as updated_at
 from 
 	(select p.user_id, p.start_date--cast(p.start_date as date)  
@@ -109,7 +109,26 @@ from (
 	) aa
 group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date) 
 ) active on p.user_id = active.user_id and td.a = active.first_day_of_week
+left join 
+/**** distinct logging by date ***/
+(
+select user_id, first_day_of_week_mon(tt.assigned_date::date) as first_day_of_week, count(*) as days_logged from (
 
+	select ah.user_id, ah.assigned_date
+	from activity_histories_numi2 ah
+	where ah.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
+	group by ah.user_id, ah.assigned_date
+		union
+	select dh.user_id, dh.assigned_date
+	from diet_histories_numi2 dh
+	where dh.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) and deleted_at is null  
+		union
+	select w.user_id, cast(w.assigned_date as date)
+	from waters_numi2 w
+	where  cast(w.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) 
+	group by w.user_id, w.assigned_date
+	) tt
+group by tt.user_id, first_day_of_week_mon(tt.assigned_date::date) ) logging on p.user_id = logging.user_id and td.a = logging.first_day_of_week
 
 where (weight.user_id is not null or water.user_id is not null or consumed.user_id is not null or active.user_id is not null) 
 order by td.a, p.user_id;
@@ -122,6 +141,4 @@ select 'user_stats_weekly_update_mon' as function_name, now() as created_at, now
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION public.user_stats_weekly_update_mon(timestamp without time zone)
-  OWNER TO gfuser;
+
