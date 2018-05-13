@@ -74,8 +74,8 @@ left join
 from (
 select ww.user_id, cast(ww.assigned_date as date) , ww._sum as water_consumed_day, ww2._cnt as wtr_entries, case when _sum >= 64 then 1 else 0 end as days_met_goal, case when ww2._cnt > 0 then 1 else 0 end as days_wtr_entries 
 from 
-	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as _sum  from waters_tracker w) ww
-	left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as _cnt  from waters_tracker w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as _sum  from waters_tracker w where deleted_at is null) ww
+	left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as _cnt  from waters_tracker w where deleted_at is null) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
 	where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
 	--and ww.user_id = 344
 ) aa
