@@ -143,3 +143,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
+ALTER FUNCTION public.milestone_appboy_events()
+  OWNER TO gfuser;
