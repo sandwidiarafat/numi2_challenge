@@ -1,5 +1,3 @@
-
-
 -- Function: public.milestone_appboy_events_sb()
 
 -- DROP FUNCTION public.milestone_appboy_events_sb();
@@ -53,8 +51,6 @@ created_at  from appboy_inapp_events_tracker ae
 where event_name like 'MILESTONE_GOAL_MET'
 and created_at >= (select max(start_time) from job_log where job_name = 'MILESTONE_EVENTS_SB' and end_time is not null)
 order by created_at desc;
-
---select * from tmp_milestones_sb
 
 -- insert into promo code milestone users
 insert into promo_code_milestone_users_sb (user_id, attribute_name, data_type)
@@ -154,3 +150,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
+ALTER FUNCTION public.milestone_appboy_events_sb()
+  OWNER TO gfuser;
