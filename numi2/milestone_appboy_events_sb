@@ -107,8 +107,8 @@ and pc.user_id is null;
 
 
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
-select user_id, attribute_name, data_type, promo_code as data_value, 9999 as campaign_stream_steps_id, 9999 as list_users_id from promo_code_milestone_users_sb where date_sent is null
-except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
+select user_id, attribute_name, data_type, promo_code as data_value, 9999 as campaign_stream_steps_id, 9999 as list_users_id from promo_code_milestone_users_sb where date_sent is null;
+--except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
 
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select mh.user_id,  
@@ -131,8 +131,8 @@ when mh.attribute_name = 'MILESTONE_GOAL_CODE' then 'MILESTONE_GOAL_CODE_DATE'
 end as attribute_name,
 'String' as data_type, 
 to_char((created_at::date + 7), 'MM /DD /YYYY')  as data_value, 9998 as campaign_stream_steps_id, 9999 as list_users_id
-from tmp_milestones_sb mh
-except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
+from tmp_milestones_sb mh;
+--except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
 
 
 drop table tmp_milestones_sb;
