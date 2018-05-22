@@ -1,5 +1,3 @@
-
-
 -- Function: public.challenge_super_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_super_update(timestamp without time zone, integer);
@@ -290,8 +288,8 @@ update promo_code_users aa
 set promo_code = tt.promo_code
 from (
 select ap.user_id, ap.attribute_name, pc.promo_code from (select user_id, attribute_name, campaign_stream_steps_id, list_users_id, row_number() over (order by user_id) as row_num from promo_code_users 
-where attribute_name = 'C18_C9_BONUS_SUPER_STATUS' and promo_code is null) ap
-inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes where attribute_name = 'C18_C9_BONUS_SUPER_STATUS' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
+where attribute_name = 'C18_C9_BONUS_SUPER_CODE' and promo_code is null) ap
+inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes where attribute_name = 'C18_C9_BONUS_SUPER_CODE' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
 where aa.user_id = tt.user_id and aa.attribute_name = tt.attribute_name;
 
 update promo_codes pc
@@ -356,3 +354,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
+ALTER FUNCTION public.challenge_super_update(timestamp without time zone, integer)
+  OWNER TO gfuser;
