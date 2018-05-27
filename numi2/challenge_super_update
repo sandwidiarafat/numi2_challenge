@@ -540,3 +540,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
+ALTER FUNCTION public.challenge_super_update(timestamp without time zone, integer)
+  OWNER TO gfuser;
