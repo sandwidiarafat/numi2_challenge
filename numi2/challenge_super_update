@@ -1,3 +1,4 @@
+
 -- Function: public.challenge_super_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_super_update(timestamp without time zone, integer);
@@ -469,22 +470,22 @@ having sum(usw.days_logged) >=5 ;
 -- determine the tier 1,2,3,4 and update appboy_user_events
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select user_id, attribute_name, 'String' as data_type, 'C10_TIER_1_SUCCESS' as data_value, 
+select user_id, 'C18_C10_TIER_1_STATUS' as attribute_name, 'String' as data_type, 'C10_TIER_1_SUCCESS' as data_value, 
 317 as campaign_stream_steps_id, list_users_id 
 from tmp_success_c10_tier1234 where data_value >= 5
 --except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id in (317);
 union
-select user_id, attribute_name, 'String' as data_type, 'C10_TIER_2_SUCCESS' as data_value, 
+select user_id, 'C18_C10_TIER_2_STATUS' as attribute_name, 'String' as data_type, 'C10_TIER_2_SUCCESS' as data_value, 
 324 as campaign_stream_steps_id, list_users_id 
 from tmp_success_c10_tier1234 where data_value >= 10
 --except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id in (324);
 union
-select user_id, attribute_name, 'String' as data_type, 'C10_TIER_3_SUCCESS' as data_value, 
+select user_id, 'C18_C10_TIER_3_STATUS' as attribute_name, 'String' as data_type, 'C10_TIER_3_SUCCESS' as data_value, 
 325 as campaign_stream_steps_id, list_users_id 
 from tmp_success_c10_tier1234 where data_value >= 15
 --except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id in (325);
 union
-select user_id, attribute_name, 'String' as data_type, 'C10_TIER_4_SUCCESS' as data_value, 
+select user_id, 'C18_C10_TIER_3_STATUS' as attribute_name, 'String' as data_type, 'C10_TIER_4_SUCCESS' as data_value, 
 326 as campaign_stream_steps_id, list_users_id 
 from tmp_success_c10_tier1234 where data_value >= 20
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id in (317,324,325,326);
