@@ -31,6 +31,7 @@ where css.rule_type in  ('end_date') and css.active = TRUE and lu.list_start_dat
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('end_date') and css.campaign_id = 2; 
 
+
 --2.1
 -- c18_c9_task_day_count
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
