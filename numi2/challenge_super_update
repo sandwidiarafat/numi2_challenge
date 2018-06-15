@@ -201,7 +201,7 @@ where date_sent is null;
 -- step 1 C18_C9 log food count 200 or greater
 insert into promo_code_users (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
 select t1.user_id, t2.attribute_name, t2.data_type, t2.campaign_stream_steps_id, t2.list_users_id 
-from (select distinct(user_id) from tmp_success_users where attribute_name = 'C18_C9_BONUS_SUPER_STATUS') t1
+from (select distinct(user_id) from tmp_success_users where attribute_name = 'C18_C9_TASK_FOOD_COUNT') t1
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
 from list_users_c18 lu 
@@ -215,8 +215,8 @@ update promo_code_users aa
 set promo_code = tt.promo_code
 from (
 select ap.user_id, ap.attribute_name, pc.promo_code from (select user_id, attribute_name, campaign_stream_steps_id, list_users_id, row_number() over (order by user_id) as row_num from promo_code_users 
-where attribute_name = 'C18_C9_BONUS_SUPER_STATUS' and promo_code is null) ap
-inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes where attribute_name = 'C18_C9_BONUS_SUPER_STATUS' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
+where attribute_name = 'C18_C9_BONUS_SUPER_CODE' and promo_code is null) ap
+inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes where attribute_name = 'C18_C9_BONUS_SUPER_CODE' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
 where aa.user_id = tt.user_id and aa.attribute_name = tt.attribute_name;
 
 update promo_codes pc
@@ -264,6 +264,15 @@ group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.l
 having sum(usw.days_logged) >= 5
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join  campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'promo_code_end_date' and task_number = 4   and css.campaign_id = 6; 
+
+/* C9 BONUS SUPER CODE END DATE ********************************************************************/
+
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select t1.user_id, 'C18_C9_BONUS_SUPER_CODE_DATE' as attribute_name, 'String' as data_type, to_char(lu.list_start_date::date + 140 + 6 * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, 298 as  campaign_stream_steps_id
+,t1.list_users_id from tmp_success_users t1
+inner join list_users_c18 lu on t1.user_id = lu.user_id
+where t1.attribute_name = 'C18_C9_TASK_FOOD_COUNT'
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id = 298;
 
 /* SET EXPIRATION for Challenge 9 **************************************************************/
 -- C%_T1 task 1
