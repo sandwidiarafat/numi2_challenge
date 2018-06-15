@@ -1,3 +1,4 @@
+
 -- Function: public.challenge_super_sobe_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_super_sobe_update(timestamp without time zone, integer);
@@ -478,7 +479,6 @@ where lu.campaign_id = 1
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and task_number = 2 and css.campaign_id = 3 ) tt;
 
-drop table if exists tmp_c10_date_range_sobe;
 
 /* C10 C18_C10_TIER_1_STATUS, 2, 3, 4 *********************************************************************************************************************************/
 -- determine the tier 1,2,3,4 and update appboy_user_events_sb
@@ -633,7 +633,8 @@ except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, a
 
 
 drop table if exists tmp_c10_date_range_sobe;
-drop table if exists tmp_ns_challenge_10_day_sobe;
+drop table if exists tmp_success_users_sobe;
+drop table if exists tmp_c10_date_range_sobe;
 drop table if exists tmp_ns_challenge_10_day_sobe_aggregate;
 
 
