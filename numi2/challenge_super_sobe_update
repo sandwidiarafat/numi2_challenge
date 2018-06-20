@@ -641,7 +641,7 @@ drop table if exists tmp_ns_challenge_10_day_sobe_aggregate;
 update challenge_run_log
 set updated_at = clock_timestamp()
 where id in (select id from challenge_run_log where function_name = 'challenge_9_numi_sobe_update' order by created_at desc limit 1);
-
+ 
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
