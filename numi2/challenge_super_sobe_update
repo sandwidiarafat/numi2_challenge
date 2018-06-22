@@ -1,6 +1,3 @@
-
-
-
 -- Function: public.challenge_super_sobe_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_super_sobe_update(timestamp without time zone, integer);
@@ -509,6 +506,16 @@ where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css
 group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
 having sum(usw.water_consumed) >= 1000
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue where campaign_stream_steps_id in (201);
+
+/* C18_C10_BONUS_1_STATUS, BONUS_2_STATUS | SUCCESS  10 and 20 days ******************************************************/
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select user_id, 'C18_C10_BONUS_1_STATUS' as attribute_name, 'String' as data_type, 'SUCCESS' as data_value, 221 as campaign_stream_steps_id, list_users_id 
+from tmp_ns_challenge_10_day_sobe_aggregate where data_value >= 10
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb where campaign_stream_steps_id = 221
+union
+select user_id, 'C18_C10_BONUS_2_STATUS' as attribute_name, 'String' as data_type, 'SUCCESS' as data_value, 222 as campaign_stream_steps_id, list_users_id 
+from tmp_ns_challenge_10_day_sobe_aggregate where data_value >= 20
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb where campaign_stream_steps_id = 222;
 
 -- set promo codes for tier 1,2,3,4, bonus 1,2
 -- C10_tier 1,2,3,4 promo codesdetermine tiers for promo codes
