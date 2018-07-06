@@ -82,11 +82,13 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id an
 /* C11 adding breakfast, lunch and dinner counts ***************************************************************************/
 
 drop table if exists tmp_c11_date_range_numi;
-CREATE temp table tmp_c11_date_range_numi (id integer, list_start_date date, campaign_stream_steps_id integer, day_start integer, day_end integer, campaign_sequence integer, date_diff integer);
+CREATE temp table tmp_c11_date_range_numi (id integer, list_start_date date, campaign_stream_steps_id integer, day_start integer, day_end integer, campaign_sequence integer, date_diff integer, dt_start date, dt_end date);
 
-insert into tmp_c11_date_range_numi(id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff)
+insert into tmp_c11_date_range_numi(id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff, dt_start, dt_end)
 select l.id, l.list_start_date, css.id as campaign_stream_steps_id, css.day_start, css.day_end, 
-css.campaign_sequence, datediff('day', l.list_start_date::date, _datetime::date) as date_diff
+css.campaign_sequence, datediff('day', l.list_start_date::date, _datetime::date) as date_diff,
+l.list_start_date::date + css.day_start as dt_start, 
+l.list_start_date::date + css.day_end - 1 as dt_end 
 from lists  l
 inner join campaign_stream_steps css on datediff('day', l.list_start_date::date, _datetime::date)  
 between day_start and day_end and
@@ -97,7 +99,7 @@ rule_type = 'task_count' and css.campaign_id = 8 and css.task_number = 3 and l.c
 -- c18_c10_task_day_count  lean protein, fruit, healthy fat
 /* day count sb_lean_protein, fruit, healthy fat  ********************************/
 drop table if exists tmp_numi_challenge_11_day_meal_occasion;  
-create temp table tmp_numi_challenge_11_day_meal_occasion ( user_id integer, assigned_date date, meal_occasion_id integer, cnt integer);
+create temp table tmp_numi_challenge_11_day_meal_occasion ( user_id integer, assigned_date date, meal_occasion_id integer, cnt integer, list_id integer);
 
 insert into tmp_numi_challenge_11_day_meal_occasion (user_id, assigned_date, meal_occasion_id, cnt)
 select dh.user_id, dh.assigned_date, dh.meal_occasion_id, count(*) as cnt
@@ -108,12 +110,28 @@ and dh.deleted_at is null and dh.meal_occasion_id in (1,3,5)
 group by dh.user_id, dh.assigned_date, dh.meal_occasion_id;
 
 create index "idx_tmp_numi_challenge_11_day_meal_occasion_user_id" on tmp_numi_challenge_11_day_meal_occasion using btree(user_id);
+create index "idx_tmp_numi_challenge_11_day_meal_occasion_assigned_date" on tmp_numi_challenge_11_day_meal_occasion using btree(assigned_date);
+create index "idx_tmp_numi_challenge_11_day_meal_occasion_list_id" on tmp_numi_challenge_11_day_meal_occasion using btree(list_id);
 
 delete from tmp_numi_challenge_11_day_meal_occasion
 where user_id not in 
 (select lu.user_id from  list_users_c18 lu
 inner join tmp_c11_date_range_numi t on t.id = lu.list_id
 where t.campaign_sequence = 11);
+
+update tmp_numi_challenge_11_day_meal_occasion t1
+set list_id = t2.list_id
+from  (
+select lu.user_id, lu.list_id from  list_users_c18 lu
+inner join tmp_c11_date_range_numi t on t.id = lu.list_id
+where t.campaign_sequence = 11
+) t2 where t1.user_id = t2.user_id;
+
+delete from 
+tmp_numi_challenge_11_day_meal_occasion mo
+using tmp_c11_date_range_numi dt
+where mo.list_id = dt.id
+and (mo.assigned_date < dt.dt_start or mo.assigned_date > dt.dt_end);
 
 -- C18_C11_TASK_BREAKFAST_COUNT
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
