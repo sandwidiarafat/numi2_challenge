@@ -56,7 +56,6 @@ having sum(usw.consumed_total_items_logged) > 0
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence = 9 and task_number = 2 and css.campaign_id = 2; 
 
-
 /*       *****************************************************************************************************/
 
 -- 2.3
