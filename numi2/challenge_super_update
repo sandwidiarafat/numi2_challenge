@@ -511,7 +511,7 @@ select t1.user_id, t1.attribute_name, t1.list_users_id , t1.data_value from (
 select usw.user_id, css.attribute_name, css.data_type, sum(usw.consumed_total_items_logged) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.campaign_sequence
 from user_stats_weekly_mon usw
 inner join list_users_c18 lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 3  and lu.deleted_at is null
-inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6,7,8) and rule_type = 'task_count' and campaign_sequence in (9,10,11) and task_number = 2
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6,7,8,9) and rule_type = 'task_count' and campaign_sequence in (9,10,11,12) and task_number = 2
 where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
 group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date, css.campaign_sequence
 having sum(usw.consumed_total_items_logged) >= 200
@@ -538,9 +538,17 @@ inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date
 where tmp.attribute_name = 'C18_C11_TASK_FOOD_COUNT'
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id = 343;
 
+-- @wbtag insert 'C18_C12_BONUS_SUPER_STATUS' | 'BONUS_SUPER_SUCCESS' into appboy user events
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select tmp.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from tmp_success_users tmp
+inner join list_users_c18 lu on lu.user_id = tmp.user_id and lu.deleted_at is null and lu.campaign_id = 3  and lu.deleted_at is null
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.attribute_name = 'C18_C12_BONUS_SUPER_STATUS'
+where tmp.attribute_name = 'C18_C12_TASK_FOOD_COUNT'
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue where campaign_stream_steps_id = 363;
+
 
 /*  @wbtag assign promo code C18_C9_T1_Task1 Bonus ******************************************************************/
-
 -- step 1 C18_C9_T1 assign promo code log food 5 days or more
 insert into promo_code_users (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
 select t1.user_id, t2.attribute_name, t2.data_type, t2.campaign_stream_steps_id, t2.list_users_id 
