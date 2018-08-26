@@ -442,11 +442,11 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 select t1.user_id, t2.attribute_name, t2.data_type, t2.data_value, t2.campaign_stream_steps_id, t2.list_users_id 
 from (
 select user_id from (
-	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_FOOD' and cast(data_value as integer) >=14
+	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_FOOD' and  campaign_stream_steps_id = 161 and cast(data_value as integer) >=14
 	union all
-	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_WATER' and cast(data_value as integer) >=14
+	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_WATER' and campaign_stream_steps_id = 162 and cast(data_value as integer) >=14
 	union all
-	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_ACTIVITY' and cast(data_value as integer) >=14) zz group by user_id having count(*) > 2
+	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_ACTIVITY' and campaign_stream_steps_id = 163 and cast(data_value as integer) >=14) zz group by user_id having count(*) > 2
 ) t1
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
@@ -570,9 +570,9 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 select t1.user_id, t2.attribute_name, t2.data_type, t2.data_value, t2.campaign_stream_steps_id, t2.list_users_id 
 from (
 select user_id from (
-	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_2_COUNT_WATER' and cast(data_value as integer) >=14
+	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_2_COUNT_WATER' and cast(data_value as integer) >=14 and campaign_stream_steps_id = 164 
 	union all
-	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_COUNT_FOOD' and cast(data_value as integer) >=14) zz group by user_id having count(*) > 1
+	select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_2_COUNT_ACTIVITY' and cast(data_value as integer) >=14  and campaign_stream_steps_id = 165 ) zz group by user_id having count(*) > 1
 ) t1
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
@@ -852,7 +852,7 @@ and pc.user_id is null;
 insert into promo_code_users_sb (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
 
 select t1.user_id, t2.attribute_name, t2.data_type, t2.campaign_stream_steps_id, t2.list_users_id 
-from (select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C2_TASK_2_STATUS' and data_value = 'SUCCESS') t1
+from (select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C2_TASK_2_STATUS' and data_value = 'SUCCESS' ) t1
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
 from list_users_c18_sobe lu 
@@ -878,11 +878,11 @@ and pc.user_id is null;
 
 
 /************************ C8_T2 *********************************************/
--- C2_T2 assign promo code, connect your device
+-- C8_T2 assign promo code, connect your device
 insert into promo_code_users_sb (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
 
 select t1.user_id, t2.attribute_name, t2.data_type, t2.campaign_stream_steps_id, t2.list_users_id 
-from (select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_2_STATUS' and data_value = 'SUCCESS') t1
+from (select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_2_STATUS' and data_value = 'SUCCESS' and campaign_stream_steps_id = 158) t1
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
 from list_users_c18_sobe lu 
@@ -905,7 +905,43 @@ from promo_code_users_sb pcu
 where pcu.attribute_name = pc.attribute_name and pcu.promo_code = pc.promo_code 
 and pc.user_id is null;
 
+/* step 3 - send appboy user events ********************/
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select user_id, attribute_name, data_type, promo_code as data_value, campaign_stream_steps_id, list_users_id from promo_code_users_sb where date_sent is null
+except  select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events_sb ;
 
+update promo_code_users_sb
+set date_sent = now()
+where date_sent is null;
+
+/* c18_c8_task_1_code */
+/* C18_C8_T1 *********************************************/
+-- C8_T1 assign promo code
+insert into promo_code_users_sb (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
+
+select t1.user_id, t2.attribute_name, t2.data_type, t2.campaign_stream_steps_id, t2.list_users_id 
+from (select distinct(user_id) from appboy_user_events_sb where attribute_name = 'SB_C18_C8_TASK_1_STATUS' and data_value = 'SUCCESS' and campaign_stream_steps_id = 155) t1
+inner join 
+(select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
+from list_users_c18_sobe lu 
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, __datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'promo_code' and campaign_sequence = 8 and task_number = 1
+where  lu.campaign_id = 1 )  t2 on t1.user_id = t2.user_id
+except  select user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id  from promo_code_users_sb;
+
+/*  step 2 - update user promo codes *************************************************************/
+update promo_code_users_sb aa
+set promo_code = tt.promo_code
+from (
+select ap.user_id, ap.attribute_name, pc.promo_code from (select user_id, attribute_name, campaign_stream_steps_id, list_users_id, row_number() over (order by user_id) as row_num from promo_code_users_sb 
+where attribute_name = 'SB_C18_C8_TASK_1_CODE' and promo_code is null) ap
+inner join (select id, promo_code, row_number() over (order by id) as row_num from promo_codes_sb where attribute_name = 'SB_C18_C8_TASK_1_CODE' and user_id is null ) pc on ap.row_num = pc.row_num ) tt
+where aa.user_id = tt.user_id and aa.attribute_name = tt.attribute_name;
+
+update promo_codes_sb pc
+set user_id = pcu.user_id
+from promo_code_users_sb pcu
+where pcu.attribute_name = pc.attribute_name and pcu.promo_code = pc.promo_code 
+and pc.user_id is null;
 
 /* step 3 - send appboy user events ********************/
 
@@ -916,6 +952,8 @@ except  select user_id, attribute_name, data_type, data_value, campaign_stream_s
 update promo_code_users_sb
 set date_sent = now()
 where date_sent is null;
+
+
 
 
 IF(debug_mode = 1)
