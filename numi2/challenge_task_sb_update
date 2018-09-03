@@ -924,7 +924,7 @@ from (select distinct(user_id) from appboy_user_events_sb where attribute_name =
 inner join 
 (select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in, css.day_start, css.day_end, lu.list_start_date
 from list_users_c18_sobe lu 
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, __datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'promo_code' and campaign_sequence = 8 and task_number = 1
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 1 and rule_type = 'promo_code' and campaign_sequence = 8 and task_number = 1
 where  lu.campaign_id = 1 )  t2 on t1.user_id = t2.user_id
 except  select user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id  from promo_code_users_sb;
 
