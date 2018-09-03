@@ -31,7 +31,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 /* day and food count *********************************************************************************************************************************************/
 
 --2.1
--- @wbtag c18_c9, c11_task_day_count
+-- @wbtag c18_c9, c11 _task_day_count
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.days_logged) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from user_stats_weekly_mon_sobe usw
@@ -44,17 +44,17 @@ except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, a
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in (9,11) and task_number = 1 and css.campaign_id in (2,4); 
 
 --2.2
--- @wbtag c18_c9_task_food_count
+-- @wbtag c18_c9, _task_food_count
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.consumed_total_items_logged) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from user_stats_weekly_mon_sobe usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 2 and rule_type = 'task_count' and campaign_sequence = 9 and task_number = 2
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (2) and rule_type = 'task_count' and campaign_sequence in (9) and task_number = 2
 where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
 group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
 having sum(usw.consumed_total_items_logged) > 0
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
-inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence = 9 and task_number = 2 and css.campaign_id = 2; 
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in  (9) and task_number = 2 and css.campaign_id in (2); 
 
 /*       *****************************************************************************************************/
 
@@ -90,7 +90,7 @@ where lu.campaign_id = 1
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and task_number = 3 and css.campaign_id in (6) ) tt;
 
--- @wbtag c18_c13_task_activity_count set to 0 check for does not exist
+-- @wbtag c18_c13_task_water_count set to 0 check for does not exist
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select tt.user_id, tt.attribute_name, tt.data_type, '0' as data_value, tt.campaign_stream_steps_id, tt.list_users_id from (
 select lu.user_id, css.attribute_name, css.data_type,  css.id as campaign_stream_steps_id, lu.list_id as list_users_id
@@ -130,7 +130,7 @@ and dh.assigned_date <= (select max(end_date) from (select t.list_start_date + t
 and dh.deleted_at is null and dh.time_bucket_id in (1,2,3)
 group by dh.user_id, dh.assigned_date, dh.time_bucket_id;
 
-create index "idx_tmp_sobe_challenge_11_day_meal_occasion_user_id" on tmp_sobe_challenge_11_day_meal_occasion using btree(user_id);
+create index "idx__11_day_meal_occasion_user_id" on tmp_sobe_challenge_11_day_meal_occasion using btree(user_id);
 create index "idx_tmp_sobe_challenge_11_day_meal_occasion_assigned_date" on tmp_sobe_challenge_11_day_meal_occasion using btree(assigned_date);
 create index "idx_tmp_sobe_challenge_11_day_meal_occasion_list_id" on tmp_sobe_challenge_11_day_meal_occasion using btree(list_id);
 
@@ -439,7 +439,6 @@ where date_sent is null;
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_9_numi_sobe_update' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
 
-
 -- @wbtag C18_C9_BONUS_SUPER_STATUS' | 'BONUS_SUPER_SUCCESS' into appboy user events
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select t1.user_id, t1.attribute_name, 'String' as data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
@@ -453,7 +452,6 @@ group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.l
 having sum(usw.consumed_total_items_logged) >= 200
 ) t1
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue where campaign_stream_steps_id = 189;
-
 
 -- step 1 C18_C9 log food count 200 or greater
 insert into promo_code_users_sb  (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
@@ -541,7 +539,6 @@ group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.l
 having sum(usw.days_logged) >= 5
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join  campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'promo_code_end_date' and task_number = 4   and css.campaign_id = 2; 
-
 
 /* @wbtag - Challenge 10 **************************************************************************************************************************************************/
 /* ***************************************************************************************************************************************************************/
@@ -932,13 +929,6 @@ having sum(usw.days_logged) >= 20
 except select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 4 and css.campaign_id in (4); 
 
---select * from tmp_success_summary
-
-
-
-
-
-
 /* assign promo code C9_T1_Task1 Bonus ***********************************************************/
 
 -- @wbtag C18_C11_ assign promo codes all
@@ -1003,7 +993,6 @@ except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, a
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id where  css.campaign_id = 4 and rule_type = 'result_status_success_expiration';
  --where campaign_stream_steps_id = 199;
 
-
 /* @wbtag C18_C10 expiration 7 days after challenge ends *************************************************************/
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
@@ -1019,7 +1008,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
  --where campaign_stream_steps_id = 199;
 
 -- @wbtag C18_C12_BONUS_SUCCESS
--- @wbtag C18_C11_SUCCESS temp table
+-- @wbtag C18_C12_SUCCESS temp table
 drop table if exists tmp_sobe_challenge_12_success;
 create temp table tmp_sobe_challenge_12_success  (user_id integer, attribute_name varchar(255), data_type varchar(255), data_value varchar(255), campaign_stream_steps_id integer, list_users_id integer);
 
@@ -1157,8 +1146,67 @@ where  lu.campaign_id = 1 order by user_id desc
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id where  css.campaign_id = 5 and rule_type = 'result_status_success_expiration';
 
+-- @wbtag C18_C13_BONUS_SUCCESS
+-- @wbtag C18_C13_SUCCESS temp table
+drop table if exists tmp_sobe_challenge_13_success;
+create temp table tmp_sobe_challenge_13_success  (user_id integer, attribute_name varchar(255), data_type varchar(255), data_value varchar(255), campaign_stream_steps_id integer, list_users_id integer);
 
+-- @wbtag C18_C13 day count
+insert into tmp_sobe_challenge_13_success (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
+select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.days_logged) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 1
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
+having sum(usw.days_logged) > 0;
+--except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+--inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 1 and css.campaign_id in (6); 
+
+-- @wbtag C18_C13 food count
+insert into tmp_sobe_challenge_13_success (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.consumed_total_items_logged) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 2
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
+having sum(usw.consumed_total_items_logged) > 0;
+--except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+--inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in  (13) and task_number = 2 and css.campaign_id in (6); 
+
+-- @wbtag C18_C13 activity count
+insert into tmp_sobe_challenge_13_success (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.active_days_entries) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 3
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
+having sum(usw.active_days_entries) > 0;
+--except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+--inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 3 and css.campaign_id in (6); 
+
+-- @wbtag C18_C13 water count
+insert into tmp_sobe_challenge_13_success (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.water_days_entries) as varchar) as data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 4
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
+having sum(usw.water_days_entries) > 0;
+--except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+--inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in (13) and task_number = 4 and css.campaign_id in (6); 
+
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select tss.user_id, tss.attribute_name, css.data_type, tss.data_value, tss.campaign_stream_steps_id, tss.list_users_id from tmp_sobe_challenge_13_success tss
+inner join campaign_stream_steps_sobe css on tss.campaign_stream_steps_id = css.id
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'task_count' and campaign_sequence in (13) and task_number in (1,2,3,4) and css.campaign_id in (6);
 
 /* C9 EXPIRATIONS *******************************************************************************************************************************/
 /* @wbtag C18_C9_TIER_STATUS | BONUS_STATUS | EXPIRE_SUCCESS ******************************************************************************************/
@@ -1173,8 +1221,6 @@ where  lu.campaign_id = 1
 ) tt on aue.user_id = tt.user_id and aue.campaign_stream_steps_id = tt.day_in
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue;
 
-
-
 drop table if exists tmp_c10_date_range_sobe;
 drop table if exists tmp_success_users_sobe;
 drop table if exists tmp_c10_date_range_sobe;
@@ -1182,6 +1228,7 @@ drop table if exists tmp_ns_challenge_10_day_sobe_aggregate;
 drop table if exists tmp_success_summary; 
 drop table if exists tmp_date_range_sobe_c12;
 drop table if exists tmp_sobe_challenge_12;  
+drop table if exists tmp_sobe_challenge_13_success;
 
 update challenge_run_log
 set updated_at = clock_timestamp()
