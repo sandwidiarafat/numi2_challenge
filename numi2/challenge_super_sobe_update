@@ -1218,7 +1218,7 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
 from tmp_sobe_challenge_13_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
 and css.day_in = usw.campaign_stream_steps_id
 where cast(usw.data_value as integer) >= 10
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
@@ -1230,7 +1230,7 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
 from tmp_sobe_challenge_13_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
 and css.day_in = usw.campaign_stream_steps_id
 where cast(usw.data_value as integer) >= 20
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
@@ -1242,7 +1242,7 @@ insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_valu
 select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
 from tmp_sobe_challenge_13_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
 and css.day_in = usw.campaign_stream_steps_id
 where cast(usw.data_value as integer) >= 200
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
@@ -1257,21 +1257,21 @@ from (
      select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 10
     union
     select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id as list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 20
     union
     select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id as list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 200
     ) tt
@@ -1316,21 +1316,21 @@ select tss.user_id, tss.attribute_name, tss.data_type, tss.data_value, tss.campa
   select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 10
     union
     select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id as list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 20
     union
     select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id as list_users_id
     from tmp_sobe_challenge_13_success usw
     inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
-    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, '2018-09-17'::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
+    inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
     and css.day_in = usw.campaign_stream_steps_id
     where cast(usw.data_value as integer) >= 200
     ) tss
