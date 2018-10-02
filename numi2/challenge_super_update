@@ -1158,6 +1158,7 @@ where css.rule_type = 'result_status_success_expire' and css.campaign_id in (7)
 /* @wbtag SET EXPIRATION for Challenge 11 **************************************************************/
 -- C%_T1 task 1
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
 select t1.user_id, t1.attribute_name, t1.data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
 select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in
 from list_users_c18 lu 
@@ -1171,6 +1172,30 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id
 where rule_type = 'result_status_success_expire'
  order by user_id,  campaign_stream_steps_id, date_sent desc ) tt );
  
+-- @wbtag c18_c11_task_cleanup tier for 2,3,4
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select t1.user_id, t1.attribute_name, t1.data_type, 
+case when ev.data_value = 'C11_TIER_1_SUCCESS' then 'C11_TIER_1_SUCCESS_EXPIRE'
+when ev.data_value = 'C11_TIER_2_SUCCESS' then 'C11_TIER_2_SUCCESS_EXPIRE'
+when ev.data_value = 'C11_TIER_3_SUCCESS' then 'C11_TIER_3_SUCCESS_EXPIRE'
+when ev.data_value = 'C11_TIER_4_SUCCESS' then 'C11_TIER_4_SUCCESS_EXPIRE' end as data_value,
+ t1.campaign_stream_steps_id, t1.list_users_id from (
+select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in
+from list_users_c18 lu 
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id  in (8) and css.rule_type = 'result_status_success_expire'  and css.id = 349
+where  lu.campaign_id = 3 ) t1
+inner join (select user_id, attribute_name, campaign_stream_steps_id, data_value from appboy_user_events) t2 on t1.user_id = t2.user_id and t1.day_in = t2.campaign_stream_steps_id
+inner join appboy_user_events ev on ev.user_id = t1.user_id where ev.campaign_stream_steps_id = 344
+except (
+select tt.user_id, tt.attribute_name, tt.data_type,  tt.data_value, tt.campaign_stream_steps_id, tt.list_users_id  from (
+select distinct on (aue.user_id, aue.campaign_stream_steps_id) aue.user_id, aue.attribute_name, aue.data_type,  aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id from appboy_user_events aue
+inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id
+where rule_type = 'result_status_success_expire' and css.id = 349
+ order by user_id,  campaign_stream_steps_id, date_sent desc ) tt );
+ 
+
+
+
 /* @wbtag SET EXPIRATION for Challenge 12 **************************************************************/
 -- C%_T1 task 1
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
