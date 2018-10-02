@@ -1307,6 +1307,61 @@ update promo_code_users_sb
 set date_sent = now()
 where date_sent is null;
 
+
+-- @wbtag C18_C13_TIER_STATUS' log 7,14,21 days food at end of challenge
+-- C18_C13_TIER_STATUS log 7 - 13
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select t1.user_id, t1.attribute_name, 'String' as data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.campaign_sequence
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type  = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 1
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * (css.day_start - 28) )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date, css.campaign_sequence
+having sum(usw.days_logged) between 7 and 13 
+) t1
+union
+-- C18_C13_TIER_STATUS log 10 - 14
+--insert into tmp_success_summary (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select t1.user_id, t1.attribute_name, 'String' as data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.campaign_sequence
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type  = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 2
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * (css.day_start - 28) )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date, css.campaign_sequence
+having sum(usw.days_logged) between 14 and 20 
+) t1
+union
+-- C18_C13_TIER_STATUS log > 21 
+--insert into tmp_success_summary (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select t1.user_id, t1.attribute_name, 'String' as data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.campaign_sequence
+from user_stats_weekly_mon_sobe usw
+inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (6) and rule_type  = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 3
+where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * (css.day_start - 28) )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
+group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date, css.campaign_sequence
+having sum(usw.days_logged) >= 21
+) t1
+except select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'result_status_success' and campaign_stream_sequence in (8) and task_number in (1,2,3) and css.campaign_id in (6); 
+
+/* @wbtag C18_C13 expiration 7 days after challenge ends *************************************************************/
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select tt.user_id, tt.attribute_name, tt.data_type, tt.data_value, tt.campaign_stream_steps_id, tt.list_users_id from appboy_user_events_sb aue 
+inner join (
+select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.day_in
+from list_users_c18_sobe lu 
+inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 6 and rule_type = 'result_status_success_expiration' -- and campaign_sequence = 1
+where  lu.campaign_id = 1 order by user_id desc
+) tt on aue.user_id = tt.user_id and aue.campaign_stream_steps_id = tt.day_in
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id where  css.campaign_id = 6 and rule_type = 'result_status_success_expiration';
+
+
 -- @wbtag C18_C11 success end date
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
