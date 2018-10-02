@@ -786,8 +786,8 @@ except  select user_id, attribute_name, data_type, data_value, campaign_stream_s
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
 select usw.user_id, 
-case when sum(usw.days_logged) between 7 and 13 then 'C18_C13_TIER_1_STATUS' when  sum(usw.days_logged) between 14 and 20 then 'C18_C13_TIER_2_SUCCESS' when  sum(usw.days_logged) >= 21 then 'C18_C13_TIER_3_SUCCESS' end as attribute_name, css.data_type, 
-case when sum(usw.days_logged) between 7 and 13 then 'C13_TIER_1_STATUS' when  sum(usw.days_logged) between 14 and 20 then 'C13_TIER_2_SUCCESS' when  sum(usw.days_logged) >= 21 then 'C13_TIER_3_SUCCESS' end as data_value,
+case when sum(usw.days_logged) between 7 and 13 then 'C18_C13_TIER_1_STATUS' when  sum(usw.days_logged) between 14 and 20 then 'C18_C13_TIER_2_STATUS' when  sum(usw.days_logged) >= 21 then 'C18_C13_TIER_3_STATUS' end as attribute_name, css.data_type, 
+case when sum(usw.days_logged) between 7 and 13 then 'C13_TIER_1_SUCCESS' when  sum(usw.days_logged) between 14 and 20 then 'C13_TIER_2_SUCCESS' when  sum(usw.days_logged) >= 21 then 'C13_TIER_3_SUCCESS' end as data_value,
 case when sum(usw.days_logged) between 7 and 13 then 397  when  sum(usw.days_logged) between 14 and 20 then 398 when  sum(usw.days_logged) >= 21 then 399 end as campaign_stream_steps_id, 
 lu.list_id as list_users_id--, sum(usw.days_logged)
 from user_stats_weekly_mon usw
