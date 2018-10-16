@@ -967,7 +967,7 @@ insert into appboy_user_events (user_id, attribute_name, data_type, data_value, 
 select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id from tmp_success_c14_summary 
 except   select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'result_status_success' and campaign_sequence in (14) 
- and css.campaign_id in (11) and css.rule_type = 'result_status_success' and css.campaign_stream_sequence = 7
+ and css.campaign_id in (11) and css.rule_type = 'result_status_success' and css.campaign_stream_sequence = 7;
 
 -- @wbtag C18_C14 level code end date for success attributes
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
