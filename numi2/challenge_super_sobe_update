@@ -1406,7 +1406,7 @@ create temp table tmp_sobe_challenge_14_success_bonus  (user_id integer, attribu
 -- @wbtag C18_C14_BONUS_1_SUCCESS Log activity >= 7 days
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 1
@@ -1418,7 +1418,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 -- @wbtag C18_C14_BONUS_2_SUCCESS Log activity >= 14 days
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 2
@@ -1430,7 +1430,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 -- @wbtag C18_C14_BONUS_3_SUCCESS Log activity >= 21 days
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (8) and task_number = 3
@@ -1444,7 +1444,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 -- @wbtag C18_C14_BONUS_1 Log food count >= 100
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 1
@@ -1456,7 +1456,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 -- @wbtag C18_C14_BONUS_2 Log food count >= 200
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (6) and task_number = 2
@@ -1468,7 +1468,7 @@ inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.
 -- @wbtag C18_C14_BONUS_SUPER Log food count >= 300
 insert into tmp_sobe_challenge_14_success_bonus (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
-select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.user_id as list_users_id
+select usw.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, usw.list_users_id
 from tmp_sobe_challenge_14_success usw
 inner join list_users_c18_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 1  and lu.deleted_at is null
 inner join campaign_stream_steps_sobe css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id in (7) and rule_type = 'result_status_success' and campaign_stream_sequence in (5) and task_number = 1
