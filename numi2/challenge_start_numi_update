@@ -1,4 +1,8 @@
 
+-- Function: public.challenge_start_numi_update(timestamp without time zone, integer)
+
+-- DROP FUNCTION public.challenge_start_numi_update(timestamp without time zone, integer);
+
 CREATE OR REPLACE FUNCTION public.challenge_start_numi_update(
     _datetime timestamp without time zone,
     debug_mode integer DEFAULT NULL::integer)
