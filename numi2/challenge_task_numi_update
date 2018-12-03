@@ -39,7 +39,7 @@ select usw.user_id, css.attribute_name, css.data_type, cast(sum(usw.water_days_e
 from user_stats_weekly_mon usw
 inner join list_users_c18 lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 3
 inner join css_in_ending ce on lu.list_id = ce.list_id  -- new wind down
-inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _dateime::date)  between css.day_start and css.day_end and css.campaign_id = 3 and css.rule_type = 'task_count' and css.campaign_sequence = 2 and task_number = 1
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between css.day_start and css.day_end and css.campaign_id = 3 and css.rule_type = 'task_count' and css.campaign_sequence = 2 and task_number = 1
 where usw.first_day_of_week between (lu.list_start_date + interval '1 day' * css.day_start - interval '1 day' )::date and (lu.list_start_date + interval '1 day' * css.day_end  - interval '1 day' )::date 
  and  (lu.list_id = ce.list_id and css.campaign_sequence = ce.campaign_sequence) -- new wind down
 group by usw.user_id, css.attribute_name, css.id, css.data_type,lu.list_id, lu.list_start_date
