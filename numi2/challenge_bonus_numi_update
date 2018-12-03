@@ -1,4 +1,3 @@
-
 -- Function: public.challenge_bonus_numi_update(timestamp without time zone)
 
 -- DROP FUNCTION public.challenge_bonus_numi_update(timestamp without time zone);
