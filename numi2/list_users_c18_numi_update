@@ -1,0 +1,45 @@
+-- Function: public.list_users_c18_numi_update()
+
+-- DROP FUNCTION public.list_users_c18_numi_update();
+
+CREATE OR REPLACE FUNCTION public.list_users_c18_numi_update()
+  RETURNS void AS
+$BODY$
+BEGIN
+
+/** create daily user list **/
+
+insert into list_users_c18  
+(user_id, start_date, list_id, created_at, updated_at, campaign_id, list_start_date)
+
+select t1.user_id, t1.start_date, t1.list_id, t1.created_at, t1.updated_at, t1.campaign_id, t1.list_start_date 
+from (
+select p.user_id,(p.created_at + tz.utc_offset)::date as start_date, l.id as list_id, now() as created_at, now() as updated_at, l.campaign_id, 	l.list_start_date as list_start_date 
+from profiles_numi2 p 
+inner join users_numi2 u on p.user_id = u.id
+inner join pg_timezone_names tz on tz.name = u.timezone
+inner join lists l on (p.created_at + tz.utc_offset)::date between l.date_start and l.date_end and (p.created_at + tz.utc_offset)::date < now()::date --and l.campaign_id = 3
+where p.user_id >= 1500000  and l.campaign_id = 3
+	union
+select p.user_id,(dm.profile_start_date + tz.utc_offset)::date as start_date, l.id as list_id, now() as created_at, now() as updated_at, l.campaign_id, l.list_start_date as list_start_date 
+from profiles_numi2 p 
+inner join users_numi2 u on p.user_id = u.id
+inner join pg_timezone_names tz on tz.name = u.timezone
+inner join data_migrations_numi2 dm on p.user_id = dm.user_id
+inner join lists l on (dm.profile_start_date + tz.utc_offset)::date between l.date_start and l.date_end and (dm.profile_start_date + tz.utc_offset)::date < now()::date --and l.campaign_id = 3
+where p.user_id < 1500000  and l.campaign_id = 3 
+) t1
+left join list_users_c18 bb on t1.user_id = bb.user_id and t1.campaign_id = bb.campaign_id
+ where bb.user_id is null
+order by t1.list_id, t1.user_id;
+
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'list_users_c18_numi_update' as function_name, now() as created_at, now() as updated_at;
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 1000;
+ALTER FUNCTION public.list_users_c18_numi_update()
+  OWNER TO gfuser;
