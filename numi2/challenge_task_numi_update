@@ -946,7 +946,6 @@ update challenge_run_log
 set updated_at = clock_timestamp()
 where id in (select id from challenge_run_log where function_name = 'challenge_task_numi_update' order by created_at desc limit 1);
 
-
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
