@@ -60,7 +60,6 @@ end if;
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_start_numi_update' as function_name, now() as created_at, now() as updated_at;
 
-
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
