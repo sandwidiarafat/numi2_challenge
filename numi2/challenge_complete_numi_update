@@ -99,6 +99,18 @@ inner join campaign_stream_steps css on tt.campaign_sequence = css.campaign_sequ
 where css.rule_type = 'result_final' ) zz 
 where ww.user_id = zz.user_id and ww.campaign_sequence = zz.campaign_sequence;
 
+--- challenge complete
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+
+select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id
+from list_users_c18 lu 
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id = 3 and rule_type = 'date_only_end' 
+where  lu.campaign_id = 3
+except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
+inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'date_only_end'  and css.campaign_id = 3;
+
+
 
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_id as list_users_id from tmp_c18_results_final
@@ -133,3 +145,4 @@ $BODY$
   COST 100;
 ALTER FUNCTION public.challenge_complete_numi_update(timestamp without time zone, integer)
   OWNER TO gfuser;
+
