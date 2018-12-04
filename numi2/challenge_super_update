@@ -2010,6 +2010,7 @@ drop table if exists tmp_success_c13_summary;
 drop table if exists tmp_success_c14_summary;
 drop table if exists tmp_success_c15_summary;
 
+
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
