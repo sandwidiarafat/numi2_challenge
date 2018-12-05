@@ -1483,7 +1483,7 @@ select usw.user_id, usw.attribute_name, usw.data_type, usw.data_value, usw.campa
 except  
   select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
   inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id 
-  where css.id in (select distinct(campaign_stream_steps_id) from tmp_sobe_challenge_14_success_bonus)
+  where css.id in (select distinct(campaign_stream_steps_id) from tmp_sobe_challenge_14_success_bonus);
 
 -- @wbtag C18_C14_ assign promo codes all
 insert into promo_code_users_sb  (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
