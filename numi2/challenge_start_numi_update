@@ -1,4 +1,3 @@
-
 -- Function: public.challenge_start_numi_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_start_numi_update(timestamp without time zone, integer);
@@ -20,13 +19,15 @@ select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id, lu
 from list_users_c18 lu
 inner join css_in_ending ce on lu.list_id = ce.list_id  -- new windown
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and lu.campaign_id = css.campaign_id
-where css.rule_type in  ('date_only','date_only_start', 'date_only_complete') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day and lu.deleted_at is null and css.campaign_id = 3 
+--where css.rule_type in  ('date_only','date_only_start', 'date_only_complete') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day and lu.deleted_at is null and css.campaign_id = 3 
+where css.rule_type in  ('date_only_complete') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day and lu.deleted_at is null and css.campaign_id = 3 -- for windown only added date_only_complete
   and  (lu.list_id = ce.list_id and css.campaign_sequence = ce.campaign_sequence) -- new windown
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('date_only','date_only_start', 'date_only_complete') and css.campaign_id = 3
 inner join css_in_ending ce on aue.list_users_id = ce.list_id where aue.list_users_id = ce.list_id -- new winddown
 ; 
 
+/*  removing 1.2 and 1.3 for windown 
 -- 1.2
 --start_date
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
@@ -57,7 +58,7 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id an
 inner join css_in_ending ce on aue.list_users_id = ce.list_id where aue.list_users_id = ce.list_id -- new winddown
 ; 
 
-
+*/
 
 IF(debug_mode = 1)
 THEN
