@@ -1,3 +1,6 @@
+-- Function: public.user_stats_weekly_update_sobe_mon(timestamp without time zone)
+
+-- DROP FUNCTION public.user_stats_weekly_update_sobe_mon(timestamp without time zone);
 
 CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_sobe_mon(_datetime timestamp without time zone)
   RETURNS void AS
@@ -48,8 +51,7 @@ from
 	--select p2.user_id, null as start_date from profiles p2
 	) p) p
 inner join (select distinct(user_id) from list_users_c18_sobe -- updated 1/1/2018 from list_users to list_users_c18
-where deleted_at is null and campaign_id = 2) lu on p.user_id = lu.user_id 
--- updated 5/29/2017 for challenge 2
+where deleted_at is null) lu on p.user_id = lu.user_id  -- updated 5/29/2017 for challenge 2
 --cross join td_date td
 cross join (select a::date from generate_series(first_day_of_week_mon((_datetime::date - interval '7 days')::date),_datetime::date, '7day'::interval) s(a)) td
 left join 
@@ -71,10 +73,10 @@ left join
  /****** waters ******/
 (select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(water_consumed_day) as water_consumed, sum(wtr_entries) as wtr_entries,  sum(days_wtr_entries) as days_wtr_entries, sum(days_met_goal) as days_met_goal
 from (
-select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as water_consumed_day, ww2.c_cnt as wtr_entries, case when s_sum >= 64 then 1 else 0 end as days_met_goal, case when ww2.c_cnt > 0 then 1 else 0 end as days_wtr_entries 
+select ww.user_id, cast(ww.assigned_date as date) , ww._sum as water_consumed_day, ww2._cnt as wtr_entries, case when _sum >= 64 then 1 else 0 end as days_met_goal, case when ww2._cnt > 0 then 1 else 0 end as days_wtr_entries 
 from 
-	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as s_sum  from waters_tracker w where deleted_at is null) ww
-	left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as c_cnt  from waters_tracker w where deleted_at is null) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as _sum  from waters_tracker w where deleted_at is null) ww
+	left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as _cnt  from waters_tracker w where deleted_at is null) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
 	where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
 	--and ww.user_id = 344
 ) aa
@@ -99,12 +101,12 @@ left join
 	select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(dly_duration) as activity_wkly_duration, sum(act_entries) as act_entries,  count(act_entries) as days_act_entries, 
 	sum(days_met_goal) as act_days_met_goal
 	from (
-	select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww2.c_cnt as act_entries, case when s_sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
+	select ww.user_id, cast(ww.assigned_date as date) , ww._sum as dly_duration, ww2._cnt as act_entries, case when _sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
 	
 	from 
-		(SELECT w.user_id, w.assigned_date, w.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w) ww
+		(SELECT w.user_id, w.assigned_date, w.goal, (SELECT sum(s) FROM UNNEST(duration) s) as _sum  from activities_tracker w) ww
 		
-		left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(duration) s) as c_cnt  from activities_tracker w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+		left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(duration) s) as _cnt  from activities_tracker w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
 		where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
 		--and ww.user_id = 344
 	) aa
