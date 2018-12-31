@@ -1,9 +1,4 @@
 
-
--- Function: public.list_users_c18_sobe_update()
-
--- DROP FUNCTION public.list_users_c18_sobe_update();
-
 CREATE OR REPLACE FUNCTION public.list_users_c18_sobe_update()
   RETURNS void AS
 $BODY$
@@ -21,7 +16,7 @@ from profiles_tracker p
 inner join users_tracker u on p.user_id = u.id
 inner join pg_timezone_names tz on tz.name = u.timezone  /** need to add these 2 lines when 2 zones are available**/
 inner join lists_sobe l on (p.created_at + tz.utc_offset)::date between l.date_start and l.date_end and (p.created_at + tz.utc_offset)::date < now()::date --and l.campaign_id = 3
-where l.campaign_id = 2
+where l.campaign_id = 10
 ) t1
 left join list_users_c18_sobe bb on t1.user_id = bb.user_id and t1.campaign_id = bb.campaign_id
  where bb.user_id is null
