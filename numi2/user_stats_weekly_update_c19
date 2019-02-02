@@ -156,11 +156,60 @@ from (
 group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)
 ) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
 
+-- vegetable goal >= 4 and vegetable days logged
+-- items logged
+update user_stats_weekly_2019 mm
+set vegetable_days_logged =  vegetable_update, vegetable_hit_goal = vegetable_hit_goal_update
+from (
+select gg.user_id, first_day_of_week_mon(gg.assigned_date::date) as first_day_of_week, sum(smartcarb_days_logged) as smartcarb_update, sum(powerfuel_days_logged) as powerfuel_update, sum(vegetable_days_logged) as vegetable_update,  
+sum(quicklog_days_logged) as quicklog_update, sum(vegetable_hit_goal) as vegetable_hit_goal_update
+from (
+	
+select user_id, assigned_date, sum(case when smartcarb > 0 then 1 end) as smartcarb_days_logged, sum(case when vegetable > 0 then 1 end) as vegetable_days_logged, sum(case when powerfuel > 0 then 1 end) as powerfuel_days_logged, 
+sum(case when quicklog > 0 then 1 end) as quicklog_days_logged,
+sum(case when vegetable_quantity >= 4 then 1 else 0 end) as vegetable_hit_goal
+
+--	count (distinct case when category_name = 'VEGETABLES' then assigned_date else null end) as vegetable_days_logged
+	
+	from (
+		select user_id, assigned_date,
+			sum(case when category_name = 'SMARTCARB' then 1 else 0  end) as smartcarb,
+			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
+			sum(case when category_name = 'POWERFUEL' then 1 else 0 end) as powerfuel, 
+			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog,
+			sum(case when category_name = 'VEGETABLES' then cast(value as numeric) else 0  end) as vegetable_quantity
+		from (
+			select id, user_id, consumable_id, assigned_date, consumable_type, 
+				(dtl->>'id') as category_id, (dtl->>'name') as category_name, (dtl->>'display_name') as display_name, (dtl->>'value') as value  from 
+			(
+			select id, user_id, consumable_id, assigned_date, consumable_type,  json_array_elements(food_categories::json) as dtl from tmp_ns_19_user_stats 
+			--where consumable_type in ('Food','CustomFood') 
+			) tt
+		) zz
+		group by user_id, assigned_date )
+	ww
+	group by user_id, assigned_date
+	
+) gg
+group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)
+) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
+
+
+
+-- update for upc scans
+update user_stats_weekly_2019 mm
+set upc_scans = zz.cnt
+from (
+	select first_day_of_week_mon(u.assigned_date::date), u.user_id, count(*) as cnt from users_scan_food_summary_rev u
+	--where user_id = 173376
+	group by first_day_of_week_mon(u.assigned_date::date), u.user_id
+	) zz where mm.user_id = zz.user_id and mm.first_day_of_week = zz.first_day_of_week_mon;
+
+
 drop table if exists tmp_ns_19_user_stats;
 
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone)
-  OWNER TO gfuser;
+
