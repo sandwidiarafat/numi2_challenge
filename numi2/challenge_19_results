@@ -1,0 +1,70 @@
+-- Function: public.challenge_19_results(timestamp without time zone, integer)
+
+-- DROP FUNCTION public.challenge_19_results(timestamp without time zone, integer);
+
+CREATE OR REPLACE FUNCTION public.challenge_19_results(
+    _datetime timestamp without time zone,
+    debug_mode integer DEFAULT NULL::integer)
+  RETURNS void AS
+$BODY$
+BEGIN
+
+	
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'challenge_19_results' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
+
+
+drop table if exists tmp_c19_results;
+create temp table if not exists tmp_c19_results
+(user_id integer, list_id integer, campaign_id integer, week_in integer,  t1 integer, t2 integer, t3 integer, t4 integer, 
+	results_final varchar(255), results_css_id integer, attribute_name varchar(255), data_type varchar(255));
+
+insert into tmp_c19_results (user_id, list_id, campaign_id, week_in, t1, t2, t3)
+select tt.user_id, tt.list_id,  tt.campaign_id, tt.week_in, 
+max(case when tt.task_number = 1 then 1 else 1 end) as t1, 
+max(case when tt.task_number = 2 then 1 else 0 end) as t2,  
+max(case when tt.task_number = 3 then 1 else 0 end) as t3  from (		
+select  lu.user_id, lu.list_id, --css.attribute_name, css.data_type, css.data_value, css.id as campaign_stream_steps_id, lu.list_id as list_users_id, css.week_in, 
+css2.id as campaign_stream_steps_id, css2.task_number, css2.week_in, css2.campaign_id
+from list_users_c19 lu 
+inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date)  between day_start and day_end and css.campaign_id  in (14)	and css.rule_type = 'result_final' and css.task_number = 1	 
+inner join (select id, campaign_id, attribute_name, week_in, day_in, task_number from campaign_stream_steps where rule_type = 'result_status_success' and campaign_id = 14) css2 on css.week_in = css2.week_in
+where  lu.campaign_id = 14 ) tt
+inner join appboy_user_events aue on aue.user_id = tt.user_id and aue.campaign_stream_steps_id = tt.campaign_stream_steps_id 
+group by tt.user_id, tt.list_id,  tt.campaign_id, tt.week_in;
+
+update tmp_c19_results ww
+set results_final = 
+--select zz.user_id, zz.list_id, zz.week_in,
+case when (zz.t1 = 1 and zz.t2 = 1 and zz.t3 = 1) then 'ALL_TASKS_COMPLETED' 
+when (zz.t1 = 1 and zz.t2 = 0 and zz.t3 = 0) then 'ONLY_TASK_COMPLETED' 
+when (zz.t1 = 0 and zz.t2 = 1 and zz.t3 = 0) then 'ONLY_BONUS_COMPLETED'
+when (zz.t1 = 1 and zz.t2 = 0 and zz.t3 = 1) then 'ONLY_STREAK_COMPLETED'
+else null end
+from (
+select t1.user_id, t1.list_id, t1,t2,t3, t1.week_in from tmp_c19_results t1) zz;
+
+update tmp_c19_results ww
+set results_css_id = zz.id, attribute_name = zz.attribute_name, data_type = zz.data_type
+from (
+select t1.user_id, t1.list_id, t1,t2,t3, t1.week_in, css.id, css.attribute_name, css.data_type, css.data_value from tmp_c19_results t1
+inner join campaign_stream_steps css on t1.week_in = css.week_in and t1.results_final = css.data_value and css.campaign_id = 14 ) zz
+where zz.user_id = ww.user_id and zz.list_id = ww.list_id;
+
+insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select t1.user_id, t1.attribute_name, t1.data_type, t1.results_final as data_value, t1.results_css_id as campaign_stream_steps_id, t1.list_id as list_users_id from tmp_c19_results t1
+except 
+	 select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
+	inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type = 'result_final' and css.campaign_id = 14;
+
+update challenge_run_log
+set updated_at = clock_timestamp()
+where id in (select id from challenge_run_log where function_name = 'challenge_19_results' order by created_at desc limit 1);
+
+
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.challenge_19_results(timestamp without time zone, integer)
+  OWNER TO gfuser;
