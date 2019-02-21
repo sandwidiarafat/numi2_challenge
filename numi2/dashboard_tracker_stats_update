@@ -9,76 +9,187 @@ CREATE OR REPLACE FUNCTION public.dashboard_tracker_stats_update(
 $BODY$
 BEGIN
 
-create temp table if not exists temp_type_t(type character varying(255));
-insert into temp_type_t(type)
-values('wt_log_events'),
-('food_logged'),
-('new_users'),
-('water_logged_events'),
-('water_logged_oz'),
-('activity_logged'),
-('lbs_lost'),
-('devices_connected');
+/** connect devices **/
+
+drop table if exists tmp_connect_device;
+create temp table if not exists tmp_connect_device
+(user_id integer, min_date date);	
+
+insert into tmp_connect_device (user_id, min_date)
+select user_id, min_date from (
+select ah.user_id, min(ah.created_at::date) as min_date
+	from activity_histories_numi2 ah 
+	where external_source is not null
+	group by ah.user_id ) tt
+where min_date >= _start_date;
+
+insert into numi_connect_device (user_id, min_date)
+select t.user_id, t.min_date from tmp_connect_device t
+left join numi_connect_device n on t.user_id = n.user_id 
+where n.user_id is null;
+
+/** connect devices end **/
+
+/** lbs lost **/
+drop table if exists tmp_numi_weight;
+create temp table if not exists tmp_numi_weight
+(user_id integer, migrated_at timestamp, created_date date, type varchar(255), cnt float);	
+
+insert into tmp_numi_weight (user_id, migrated_at, created_date, type, cnt)	
+select tt.id as user_id, migrated_at, created_date, type, cnt from (
+select u.id, u.migrated_at, wh.created_at::date as created_date, 'lbs_lost' as type, 
+sum(case when wh.previous_lbs is null then wh.current_lbs else wh.previous_lbs end - wh.current_lbs) as cnt
+from weight_histories wh 
+inner join users u on wh.user_id = u.id-- where u.migrated_at is null
+where wh.created_at::date >= _start_date and  wh.created_at::date < _end_date
+and (case when wh.previous_lbs is null then wh.current_lbs else wh.previous_lbs end - wh.current_lbs) > 0
+--and u.migrated_at is null
+group by u.id, u.migrated_at, wh.created_at::date
+) tt;
+/** lbs lost end **/
 
 DELETE from dashboard_tracker_stats where date >= _start_date;
 
+drop table if exists temp_type_t;
+create temp table if not exists temp_type_t(source varchar(50), type character varying(255));
+insert into temp_type_t(source, type)
+values
+('numi_1','wt_log_events'),
+('numi_2','wt_log_events'),
+('numi_1','food_logged'),
+('numi_2','food_logged'),
+('numi_1','new_users'),
+('numi_2','new_users'),
+('numi_1','water_logged_events'),
+('numi_2','water_logged_events'),
+('numi_1','water_logged_oz'),
+('numi_2','water_logged_oz'),
+('numi_1','activity_logged'),
+('numi_2','activity_logged'),
+('numi_1','lbs_lost'),
+('numi_2','lbs_lost'),
+('numi_1','devices_connected'),
+('numi_2','devices_connected');
 
-insert into dashboard_tracker_stats (date, type, cnt, created_at, updated_at)
-
-select tmp.date, tmp.type, coalesce(zz.cnt,0) as cnt, now(), now() from (
-select type, td.a as date from temp_type_t dd
+insert into dashboard_tracker_stats (date, source,  type, cnt, created_at, updated_at)
+select tmp.date, tmp.source, tmp.type, coalesce(zz.cnt,0) as cnt, now(), now() from (
+select source, type, td.a as date from temp_type_t dd
 --select distinct(type) as type, td.a as date from dashboard_tracker_stats dd
-cross join (select a::date from generate_series(_start_date::date, _end_date::date, '1day'::interval) s(a)) td ) tmp
-left join
+cross join (select a::date from generate_series(_start_date::date, _end_date::date - 1, '1day'::interval) s(a)) td ) tmp
+left join 
 (
-select aa.assigned_date, aa.type, aa.cnt, now(), now() from (
-select dh.assigned_date, 'food_logged' as type, count(*) as cnt
+--GoogleReport.find_by_sql("select dashboard_session_stats_update(current_date)")
+--GoogleReport.find_by_sql("select dashboard_tracker_stats_update((current_date - interval '3 day')::date, (current_date - interval '1 day')::date)")
+--GoogleReport.find_by_sql("select user_active_update(a::date) from generate_series((current_date - interval '7 day')::date, (current_date - interval '1 day')::date, '1 day'::interval) s(a);")
+select aa.date, aa.source, aa.type, aa.cnt, now(), now() from (
+-- diet_histories
+select 'numi_1' as source, dh.updated_at::date as date, 'food_logged' as type, count(*) as cnt
 	from diet_histories dh
-	where dh.deleted_at is null and dh.assigned_date between _start_date and _end_date
-	group by dh.assigned_date
+	inner join users u on dh.user_id = u.id
+	where dh.deleted_at is null and dh.updated_at >= _start_date and dh.updated_at < _end_date and dh.updated_at < case when migrated_at is not null then migrated_at::date else '2020-01-01' end 
+	group by dh.updated_at::date
 union all
-select ah.assigned_date, 'activity_logged' as type, count(*) as cnt
-	from activity_histories ah
-	where ah.assigned_date between _start_date and _end_date
-	group by ah.assigned_date
+select 'numi_2' as source, dh.created_at::date as date, 'food_logged' as type, count(*) as cnt
+	from diet_histories_numi2 dh
+	where dh.deleted_at is null and dh.created_at >= _start_date and dh.created_at < _end_date
+	group by dh.created_at::date
+
 union all
-select w.assigned_date, 'water_logged_oz' as type, sum(ounces) as cnt
+-- activity_histores
+select 'numi_1' as source, ah.created_at::date as date, 'activity_logged' as type, count(*) as cnt
+from activity_histories ah
+inner join users u on ah.user_id = u.id
+where ah.created_at >= _start_date and ah.created_at < _end_date and ah.created_at < case when migrated_at is not null then migrated_at::date else '2020-01-01' end 
+group by ah.created_at::date
+union all
+select 'numi_2' as source,  ah.created_at::date as date, 'activity_logged' as type, count(*) as cnt
+from activity_histories_numi2 ah
+where ah.created_at >=  _start_date and ah.created_at < _end_date
+group by ah.created_at::date
+
+union all
+-- water logged oz
+select 'numi_1' as source, w.created_at::date as date, 'water_logged_oz' as type, sum(ounces) as cnt
 	from waters w
-	where w.assigned_date between _start_date and _end_date
-	group by w.assigned_date
+	inner join users u on w.user_id = u.id
+	where w.created_at >= _start_date and w.created_at <  _end_date and w.created_at < case when migrated_at is not null then migrated_at::date else '2020-01-01' end 
+	group by w.created_at::date
 union all
-/*devices conntect*/
-select ww.min_date as assigned_date, 'devices_connected' as type, count(*) as cnt  from (
-select ah.user_id, min(ah.assigned_date) as min_date
-	from activity_histories ah 
-	where external_source is not null --and ah.assigned_date <= '2017-01-17'
-	group by ah.user_id ) ww
-	where  ww.min_date between _start_date and _end_date
-	group by ww.min_date
+select 'numi_2' as source,  ww.created_at::date as date, 'water_logged_oz' as type, sum(ww._sum) as cnt from (
+	SELECT w.user_id, w.created_at, (SELECT sum(s) FROM UNNEST(ounces) s) as _sum  from waters_numi2 w) ww
+	where ww.created_at >=  _start_date and ww.created_at < _end_date
+	group by ww.created_at::date
+
 union all
-	select wh.created_at::date as assigned_date, 'lbs_lost' as type, sum(case when wh.previous_lbs is null then wh.current_lbs else wh.previous_lbs end - wh.current_lbs) as cnt
-	from weight_histories wh where wh.created_at::date between _start_date and _end_date
-	and (case when wh.previous_lbs is null then wh.current_lbs else wh.previous_lbs end - wh.current_lbs) > 0
-	group by wh.created_at::date
-union all
-	select wh.created_at::date as assigned_date, 'wt_log_events' as type, count(*) as cnt
-	from weight_histories wh where wh.created_at::date between _start_date and _end_date
-	group by wh.created_at::date
-union all
-	select p.created_at::date as assigned_date, 'new_users' as type, count(*) as cnt
-	from profiles p where p.created_at::date between _start_date and _end_date and completed = 'TRUE'
-	group by p.created_at::date
-union all
-select w.assigned_date, 'water_logged_events' as type, count(*) as cnt
+/** water logged events **/
+select 'numi_1' as source, w.created_at::date as date, 'water_logged_events' as type, count(*) as cnt
 	from waters w
-	where w.assigned_date between _start_date and _end_date
-	group by w.assigned_date
+	inner join users u on w.user_id = u.id
+	where w.created_at >= _start_date and  w.created_at < _end_date  and w.created_at <  _end_date and w.created_at < case when migrated_at is not null then migrated_at::date else '2020-01-01' end 
+	group by  w.created_at::date
+union all
+select 'numi_2' as source,  ww.created_at::date as date, 'water_logged_events' as type, sum(ww._cnt) as cnt from (
+	SELECT w.user_id, w.created_at, (SELECT count(s) FROM UNNEST(ounces) s) as _cnt  from waters_numi2 w) ww
+	where ww.created_at >=  _start_date and ww.created_at < _end_date
+	group by ww.created_at::date
+
+union all
+/** lbs lost **/
+select 'numi_1' as source, created_date as date, type, sum(cnt) as cnt from tmp_numi_weight where migrated_at is null group by created_date, type
+union all 
+select 'numi_2' as source,  wh.assigned_date as date, 'lbs_lost' as type, sum (wtchg) as cnt from (
+select user_id, assigned_date,  plan_weight_lbs_lost_numi2(user_id,assigned_date) as wtchg from weights_numi2
+where user_id is not null 
+) wh
+where  wh.assigned_date >= _start_date and  wh.assigned_date < _end_date and wtchg > 0 
+group by wh.assigned_date
+
+
+union all
+/** wt log events **/
+select 'numi_1' as source, created_date as date, 'wt_log_events' as type, count(*) as cnt from tmp_numi_weight where migrated_at is null group by created_date
+union all 
+select 'numi_2' as source,  wh.created_at::date as date, 'wt_log_events' as type, count (*) as cnt from
+weights_numi2 wh
+where  wh.created_at >= _start_date and  wh.created_at < _end_date 
+group by wh.created_at::date
+
+
+
+union all
+/** new users **/
+select 'numi_1' as source,  p.created_at::date as assigned_date, 'new_users' as type, count(*) as cnt
+from profiles p where p.created_at::date>= _start_date and  p.created_at < _end_date and completed = 'TRUE'
+group by p.created_at::date	
+	union all
+select 'numi_2' as source, p.created_at::date as assigned_date, 'new_users' as type, count(*) as cnt
+from profiles_numi2 p 
+where p.user_id >= 1500000  and p.created_at::date >= _start_date and  p.created_at < _end_date  
+group by p.created_at::date	
+
+
+
+
+union all
+/** devices connected **/
+select 'numi_1' as source, n.min_date as date, 'devices_connected' as type,  count(*) as cnt
+	from numi_connect_device n
+	where  n.min_date >= _start_date and  n.min_date < _end_date and n.user_id < 1500000
+	group by n.min_date
+union all
+select 'numi_2' as source, n.min_date as date,  'devices_connected' as type, count(*) as cnt
+	from numi_connect_device n
+	where  n.min_date >= _start_date and  n.min_date < _end_date and n.user_id >= 1500000
+	group by n.min_date
 ) aa
-) zz on tmp.date = zz.assigned_date and tmp.type = zz.type
-order by tmp.date, tmp.type;
+) zz on tmp.date = zz.date and tmp.type = zz.type and tmp.source = zz.source
+order by tmp.date, tmp.source, tmp.type;
+
+
 
 drop table temp_type_t;
-
+drop table tmp_connect_device;
+drop table tmp_numi_weight;
 
 END;
 $BODY$
