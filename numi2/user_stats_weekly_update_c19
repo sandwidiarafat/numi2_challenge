@@ -1,3 +1,4 @@
+
 -- Function: public.user_stats_weekly_update_c19(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone);
@@ -201,7 +202,7 @@ update user_stats_weekly_2019 mm
 set upc_scans = zz.cnt
 from (
 	select first_day_of_week_mon(u.assigned_date::date), u.user_id, count(*) as cnt from users_scan_food_summary_rev u
-	where upc_code like '632674%'
+	where upc_code like '%632674%'
 	group by first_day_of_week_mon(u.assigned_date::date), u.user_id
 	) zz where mm.user_id = zz.user_id and mm.first_day_of_week = zz.first_day_of_week_mon;
 
@@ -212,5 +213,4 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone)
-  OWNER TO gfuser;
+
