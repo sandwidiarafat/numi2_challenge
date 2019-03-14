@@ -1,41 +1,48 @@
+-- Function: public.user_stats_weekly_update_sobe_2019(timestamp without time zone)
 
--- Function: public.user_stats_weekly_update_c19(timestamp without time zone)
+-- DROP FUNCTION public.user_stats_weekly_update_sobe_2019(timestamp without time zone);
 
--- DROP FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone);
-
-CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_c19(_datetime timestamp without time zone)
+CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_sobe_2019(_datetime timestamp without time zone)
   RETURNS void AS
 $BODY$
 BEGIN
 
-insert into challenge_run_log (function_name, created_at, updated_at)
-select 'user_stats_weekly_update_c19' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
+DELETE from user_stats_weekly_sobe_2019 where first_day_of_week >= first_day_of_week_mon((_datetime::date - interval '7 days')::date);
 
-DELETE from user_stats_weekly_2019 where first_day_of_week >= first_day_of_week_mon((_datetime::date - interval '7 days')::date);
-
---PERFORM SETVAL('user_stats_weekly_2019_id_seq', ((select case when max(id) is null then 0 else max(id) end from user_stats_weekly_2019)+1) );
-PERFORM setval('user_stats_weekly_2019_id_seq', coalesce((select max(id)+1 from user_stats_weekly_2019), 1), false);
-
-drop table if exists tmp_ns_19_user_stats;  
-create temp table tmp_ns_19_user_stats ( id integer, user_id integer, assigned_date date, consumable_id integer, consumable_type varchar(255),  
-	created_at timestamp, food_categories jsonb, food_type varchar(255), food_category varchar(255));
-
-insert into tmp_ns_19_user_stats (id, user_id, assigned_date, consumable_id, consumable_type,  created_at,  food_categories)
-select dh.id, dh.user_id, dh.assigned_date, dh.consumable_id, dh.consumable_type,  dh.created_at,  dh.food_categories
-from diet_histories_numi2 dh 
-where  dh.assigned_date >= first_day_of_week_mon((	_datetime::date - interval '7 days')::date)
-and dh.deleted_at is null;
+perform SETVAL('user_stats_weekly_sobe_2019_id_seq', coalesce((select max(id)+1 from user_stats_weekly_sobe_2019), 1), false); 
 
 
 INSERT INTO 
-  user_stats_weekly_2019
+  user_stats_weekly_sobe_2019
 (
-  user_id, plan_start_date,
- -- weeks_on_plan, adjusted_plan_start_date, weeks_on_plan_rev,
-  first_day_of_week, weight_lbs_lost, weight_entries, water_consumed, water_total_entries, water_days_entries, water_days_met_goal, consumed_days_entries, consumed_total_items_logged,
-  active_days_entries, active_total_duration, days_logged,
-  --  vegetable_goal, powerfuel_goal, smartcarb_goal, quicklog_goal,
-   created_at, updated_at
+  user_id,
+  plan_start_date,
+ -- weeks_on_plan,
+ -- adjusted_plan_start_date,
+ -- weeks_on_plan_rev,
+  first_day_of_week,
+  weight_lbs_lost,
+  weight_entries,
+  water_consumed,
+  water_total_entries,
+  water_days_entries,
+  water_days_met_goal,
+  consumed_days_entries,
+  consumed_total_items_logged,
+  active_days_entries,
+  active_total_duration,
+  active_days_met_goal,
+  days_logged,
+  created_at,
+  updated_at
+  /** added for c19 **/
+  --entree_goal,  -- # of days logging sobe entrees
+  --breakfast_goal,  -- # of days logged breakfasts
+  --entree_scan, -- # of nutrisystem entrees scanned
+  --breakfast_recipe,  -- # of breakfast recipes logged
+  --quicklog_goal, -- # of quick logged items
+  --lean_protein_goal,  -- # of days logged leas protein items
+  --lean_protein_count -- # of distint/unique lean protein items logged
 )
 
 select  p.user_id, null as plan_start_date, 
@@ -43,29 +50,34 @@ td.a as first_day_of_week,
 weight.lbs_lost as weight_lbs_lost, weight.wh_entries as weight_entries, water.water_consumed, 
 water.wtr_entries as water_total_entries, water.days_wtr_entries as water_days_entries, water.days_met_goal as water_days_met_goal,
 consumed.days_dh_entries as consumed_days_entries, consumed.total_items_logged as consumed_total_items_logged,
-active.times_per_week_activities_logged as active_days_entries, active.wkly_duration as active_tot_duration, logging.days_logged,
+active.days_act_entries as active_days_entries, activity_wkly_duration as active_total_duration, active.act_days_met_goal as active_days_met_goal, logging.days_logged,
 now() as created_at, now() as updated_at
 from 
 	(select p.user_id, p.start_date--cast(p.start_date as date)  
 	from (
-	select p.user_id, null as start_date from  profiles_numi2 p --where status = 'ONBOARDING_COMPLETE'
+	select p.user_id, null as start_date from  profiles_tracker p --where status = 'ONBOARDING_COMPLETE'
 	--union 
 	--select p2.user_id, null as start_date from profiles p2
 	) p) p
-inner join (select distinct(user_id) from list_users_c19 -- updated 1/1/2018 from list_users to list_users_c18
-where deleted_at is null) lu on p.user_id = lu.user_id  -- updated 5/29/2017 for challenge 2
+inner join (select distinct(user_id) from list_users_c19_sobe -- updated 1/1/2018 from list_users to list_users_c18
+where deleted_at is null and campaign_id = 11) lu on p.user_id = lu.user_id  -- updated 5/29/2017 for challenge 2
 --cross join td_date td
 cross join (select a::date from generate_series(first_day_of_week_mon((_datetime::date - interval '7 days')::date),_datetime::date, '7day'::interval) s(a)) td
 left join 
 /************ weight **************/
-(select wh.user_id, wh.lbs_lost, wh.wh_entries, wh.first_day_of_week from (
-
-		 select ww.user_id, cast(sum(COALESCE(prevwt,current) - current) as numeric(10,2)) as lbs_lost, count(*) as wh_entries,  first_day_of_week_mon(ww.assigned_date::date) as first_day_of_week from (  
-		 select w.user_id, w.assigned_date, w.current, 
-		 LEAD(w.current) OVER (ORDER BY w.user_id, w.assigned_date desc) as prevwt  from weights_numi2 w
-		 inner join profiles_numi2 p on w.user_id = p.user_id
-		 order by w.assigned_date ) ww 
-		 where  ww.assigned_date >= first_day_of_week_mon((	_datetime::date - interval '7 days')::date) --and ww.assigned_date < '2017-11-19'--p.start_date
+(select wh.user_id, wh.lbs_lost, case when wh.first_day_of_week = start_date then  wh.wh_entries - 1 else wh.wh_entries end as wh_entries, wh.first_day_of_week from (
+--select * from profiles_tracker
+		 select ww.user_id, sum(lbs_lost) as lbs_lost,  count(*) as wh_entries,  first_day_of_week_mon(ww.assigned_date::date) as first_day_of_week, max(start_date) as start_date
+		 from (  
+			select ww2.user_id, ww2.assigned_date, ww2.current, ww2.prevwt, first_day_of_week_mon(ww2.start_date) as start_date, cast(COALESCE(prevwt,current) - current as numeric(10,2)) as lbs_lost from (
+			 select w.user_id, w.assigned_date, w.current, p.start_date,
+			 LAG(w.current) OVER (partition by w.user_id order by w.assigned_date) as prevwt  from weights_tracker w 
+			 inner join profiles_tracker p on w.user_id = p.user_id and w.deleted_at is null
+			 order by w.assigned_date
+			 --where w.user_id = 84290
+			) ww2 order by ww2.user_id, ww2.assigned_date
+		  ) ww 
+		 where  ww.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) --and ww.assigned_date < '2017-11-19'--p.start_date
 		 group by ww.user_id,first_day_of_week_mon(ww.assigned_date::date), (last_day_of_week_mon(ww.assigned_date::date) + interval '1 day')::date 
 		 
 		 ) wh
@@ -77,8 +89,8 @@ left join
 from (
 select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as water_consumed_day, ww2.c_cnt as wtr_entries, case when s_sum >= 64 then 1 else 0 end as days_met_goal, case when ww2.c_cnt > 0 then 1 else 0 end as days_wtr_entries 
 from 
-	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as s_sum  from waters_numi2 w) ww
-	left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as c_cnt  from waters_numi2 w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+	(SELECT w.user_id, w.assigned_date, (SELECT sum(s) FROM UNNEST(ounces) s) as s_sum  from waters_tracker w where deleted_at is null) ww
+	inner join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(ounces) s) as c_cnt  from waters_tracker w where deleted_at is null) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
 	where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
 	--and ww.user_id = 344
 ) aa
@@ -89,9 +101,8 @@ left join
 /*** diet histories ******/
 (select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, count(distinct(aa.assigned_date)) as days_dh_entries, sum(items_consumed) as total_items_logged  from (
 	select dh.user_id, dh.assigned_date, count(*) as items_consumed
-	--from diet_histories_numi2 dh
-	from tmp_ns_19_user_stats dh
-	--where dh.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) and deleted_at is null
+	from diet_histories_tracker dh
+	where dh.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) and deleted_at is null
 	group by dh.user_id, dh.assigned_date
 	) aa
 group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)  
@@ -100,125 +111,116 @@ group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
 
 left join 
 /************** activity ************************/
-(select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, count(distinct(assigned_date)) as times_per_week_activities_logged, sum(dly_duration) as wkly_duration  
-from (
-	select ah.user_id, ah.assigned_date, count(*) as dly_activities_logged, sum(duration) as dly_duration
-	from activity_histories_numi2 ah
-	where ah.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) 
-	group by ah.user_id, ah.assigned_date
+(
+	select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(dly_duration) as activity_wkly_duration, sum(act_entries) as act_entries,  count(act_entries) as days_act_entries, 
+	sum(days_met_goal) as act_days_met_goal
+	from (
+	select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww2.c_cnt as act_entries, case when s_sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
+	
+	from 
+		(SELECT w.user_id, w.assigned_date, w.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w) ww
+		
+		left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(duration) s) as c_cnt  from activities_tracker w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+		where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
+		--and ww.user_id = 344
 	) aa
-group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date) 
-) active on p.user_id = active.user_id and td.a = active.first_day_of_week
+		group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
+	
+	) active on p.user_id = active.user_id and td.a = active.first_day_of_week
+
 left join 
 /**** distinct logging by date ***/
 (
 select user_id, first_day_of_week_mon(tt.assigned_date::date) as first_day_of_week, count(*) as days_logged from (
 
 	select ah.user_id, ah.assigned_date
-	from activity_histories_numi2 ah
+	from activities_tracker ah
 	where ah.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
 	group by ah.user_id, ah.assigned_date
 		union
 	select dh.user_id, dh.assigned_date
-	from diet_histories_numi2 dh
+	from diet_histories_tracker dh
 	where dh.assigned_date >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) and deleted_at is null  
 		union
 	select w.user_id, cast(w.assigned_date as date)
-	from waters_numi2 w
+	from waters_tracker w
 	where  cast(w.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date) 
 	group by w.user_id, w.assigned_date
 	) tt
 group by tt.user_id, first_day_of_week_mon(tt.assigned_date::date) ) logging on p.user_id = logging.user_id and td.a = logging.first_day_of_week
+
 where (weight.user_id is not null or water.user_id is not null or consumed.user_id is not null or active.user_id is not null) 
 order by td.a, p.user_id;
 
-update user_stats_weekly_2019 mm
-set smartcarb_goal = smartcarb, vegetable_goal = vegetable, powerfuel_goal = powerfuel, quicklog_goal = quicklog
+/* update user stats extension */
+
+drop table if exists tmp_sobe_19_user_stats;  
+create temp table tmp_sobe_19_user_stats ( id integer, user_id integer, assigned_date date, consumable_id integer, consumable_type varchar(255),  
+	created_at timestamp, food_categories JSONB DEFAULT '[]'::jsonb, food_category varchar(255), quick_log varchar(255), food_type varchar(255), breakfast boolean);
+
+
+insert into tmp_sobe_19_user_stats (id, user_id, assigned_date, consumable_id, consumable_type,  created_at,  food_categories, quick_log, food_type, breakfast)
+select dh.id, dh.user_id, dh.assigned_date, dh.consumable_id, dh.consumable_type,  dh.created_at,  dh.food_categories, ql.food_category as quick_log, fc.food_type, fc.breakfast
+from diet_histories_tracker dh 
+left join quick_logs ql on (dh.consumable_id = ql.id and dh.consumable_type = 'QuickLog')
+--left join food_brands fb on (dh.consumable_id = fb.id and dh.consumable_type = 'FoodBrand')
+left join food_catalogs fc on (dh.consumable_id = fc.id and dh.consumable_type = 'FoodCatalog' )
+where dh.assigned_date >= first_day_of_week_mon((	_datetime::date - interval '7 days')::date) and dh.deleted_at is null;
+
+create index "idx_tmp_sobe_19_user_stats_user_id" on tmp_sobe_19_user_stats using btree(user_id);
+create index "idx_tmp_sobe_19_user_stats_consumable_food_categories" on tmp_sobe_19_user_stats using btree(food_categories);
+
+delete from tmp_sobe_19_user_stats  where consumable_type not like ('QuickLog') and (food_categories in ('{}','null'));  -- need to add to remove invalid food_categories;
+
+
+update user_stats_weekly_sobe_2019 mm
+set entree_goal = entree_days, breakfast_goal = breakfast_days, breakfast_recipe = breakfast_recipe_entries, quicklog_goal = quicklog_entries, 
+	lean_protein_goal = leanprotein_days,  lean_protein_count = leanprotein_entries
 from (
-select gg.user_id, first_day_of_week_mon(gg.assigned_date::date) as first_day_of_week, sum(smartcarb) as smartcarb, sum(powerfuel) as powerfuel, sum(vegetable) as vegetable,  sum(quicklog) as quicklog
+select gg.user_id, first_day_of_week_mon(gg.assigned_date::date) as first_day_of_week, sum(case when entree > 0 then 1 else 0 end) as entree_days, sum(case when breakfast > 0 then 1 else 0 end) as breakfast_days, 
+sum(case when leanprotein > 0 then 1 else 0 end) as leanprotein_days, 
+sum(leanprotein) as leanprotein_entries,
+sum(quicklog) as quicklog_entries,
+sum(breakfast_recipe) as breakfast_recipe_entries
 from (
-	select user_id, assigned_date, sum(smartcarb) as smartcarb, sum(vegetable) as vegetable, sum(powerfuel) as powerfuel, sum(quicklog) as quicklog
-	
-	from (
-		select id, user_id, assigned_date,
-			sum(case when category_name = 'SMARTCARB' then 1 else 0  end) as smartcarb,
-			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
-			sum(case when category_name = 'POWERFUEL' then 1 else 0 end) as powerfuel, 
-			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog
+	select user_id, assigned_date, sum(sb_entree_cnt) as entree, sum(sb_breakfast_cnt) as breakfast, sum(sb_lean_protein_cnt) as leanprotein, sum(quicklog_cnt) as quicklog, 
+		sum(case when breakfast_recipe_cnt > 0 then 1 else 0 end) breakfast_recipe
+ from (
+		select zz.id, zz.user_id, zz.assigned_date,
+					sum(case when category = 'sb_entree' then 1 else 0  end) as sb_entree_cnt,
+					sum(case when category = 'sb_breakfast' then 1 else 0  end) as sb_breakfast_cnt,
+					sum(case when category = 'sb_leanprotein' then 1 else 0 end) as sb_lean_protein_cnt, 
+					sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog_cnt,
+					sum(case when food_type = 'recipe' and breakfast = true then 1 else 0 end) as breakfast_recipe_cnt
 		from (
 			select id, user_id, consumable_id, assigned_date, consumable_type, 
-				(dtl->>'id') as category_id, (dtl->>'name') as category_name, (dtl->>'display_name') as display_name, (dtl->>'value') as value  from 
-			(
-			select id, user_id, consumable_id, assigned_date, consumable_type,  json_array_elements(food_categories::json) as dtl from tmp_ns_19_user_stats 
-			--where consumable_type in ('Food','CustomFood') 
-			) tt
+						 (dtl->>'category') as category,  (dtl->>'count') as value, food_type, breakfast  from 
+					(
+				select id, user_id, consumable_id, assigned_date, consumable_type,  json_array_elements(food_categories::json) as dtl, food_type, breakfast 
+						from tmp_sobe_19_user_stats where consumable_type not like ('QuickLog')  and food_categories is not null
+					--where consumable_type in ('Food','CustomFood') 
+					) tt
+				union 		
+			select id, user_id, consumable_id, assigned_date, consumable_type, quick_log as category, '1' as value, food_type, breakfast  from tmp_sobe_19_user_stats where consumable_type = ('QuickLog')
 		) zz
-		group by id, user_id, assigned_date )
-	ww
+		group by zz.id, zz.user_id, zz.assigned_date 
+)	ww
+	--where user_id = 1
 	group by user_id, assigned_date
 ) gg
-group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)
+group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)		
 ) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
 
--- vegetable goal >= 4 and vegetable days logged
--- items logged
-update user_stats_weekly_2019 mm
-set vegetable_days_logged =  vegetable_update, vegetable_hit_goal = vegetable_hit_goal_update
-from (
-select gg.user_id, first_day_of_week_mon(gg.assigned_date::date) as first_day_of_week, sum(smartcarb_days_logged) as smartcarb_update, sum(powerfuel_days_logged) as powerfuel_update, sum(vegetable_days_logged) as vegetable_update,  
-sum(quicklog_days_logged) as quicklog_update, sum(vegetable_hit_goal) as vegetable_hit_goal_update
-from (
-	
-select user_id, assigned_date, sum(case when smartcarb > 0 then 1 end) as smartcarb_days_logged, sum(case when vegetable > 0 then 1 end) as vegetable_days_logged, sum(case when powerfuel > 0 then 1 end) as powerfuel_days_logged, 
-sum(case when quicklog > 0 then 1 end) as quicklog_days_logged,
-sum(case when vegetable_quantity >= 4 then 1 else 0 end) as vegetable_hit_goal
-
---	count (distinct case when category_name = 'VEGETABLES' then assigned_date else null end) as vegetable_days_logged
-	
-	from (
-		select user_id, assigned_date,
-			sum(case when category_name = 'SMARTCARB' then 1 else 0  end) as smartcarb,
-			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
-			sum(case when category_name = 'POWERFUEL' then 1 else 0 end) as powerfuel, 
-			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog,
-			sum(case when category_name = 'VEGETABLES' then cast(value as numeric) else 0  end) as vegetable_quantity
-		from (
-			select id, user_id, consumable_id, assigned_date, consumable_type, 
-				(dtl->>'id') as category_id, (dtl->>'name') as category_name, (dtl->>'display_name') as display_name, (dtl->>'value') as value  from 
-			(
-			select id, user_id, consumable_id, assigned_date, consumable_type,  json_array_elements(food_categories::json) as dtl from tmp_ns_19_user_stats 
-			--where consumable_type in ('Food','CustomFood') 
-			) tt
-		) zz
-		group by user_id, assigned_date )
-	ww
-	group by user_id, assigned_date
-	
-) gg
-group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)
-) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
+drop table if exists tmp_sobe_19_user_stats;  
 
 
-
--- update for upc scans
-update user_stats_weekly_2019 mm
-set upc_scans = zz.cnt
-from (
-	select first_day_of_week_mon(u.assigned_date::date), u.user_id, count(*) as cnt from users_scan_food_summary_rev u
-	where upc_code like '%632674%'
-	group by first_day_of_week_mon(u.assigned_date::date), u.user_id
-	) zz where mm.user_id = zz.user_id and mm.first_day_of_week = zz.first_day_of_week_mon;
-
-
-drop table if exists tmp_ns_19_user_stats;
-
-update challenge_run_log
-set updated_at = clock_timestamp()
-where id in (select id from challenge_run_log where function_name = 'user_stats_weekly_update_c19' order by created_at desc limit 1);
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'user_stats_weekly_update_sobe_2019' as function_name, now() as created_at, now() as updated_at;
 
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone)
+ALTER FUNCTION public.user_stats_weekly_update_sobe_2019(timestamp without time zone)
   OWNER TO gfuser;
+
