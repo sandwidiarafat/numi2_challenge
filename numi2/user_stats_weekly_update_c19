@@ -1,4 +1,3 @@
-
 -- Function: public.user_stats_weekly_update_c19(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone);
@@ -7,6 +6,9 @@ CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_c19(_datetime timesta
   RETURNS void AS
 $BODY$
 BEGIN
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'user_stats_weekly_update_c19' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
 
 DELETE from user_stats_weekly_2019 where first_day_of_week >= first_day_of_week_mon((_datetime::date - interval '7 days')::date);
 
@@ -209,8 +211,13 @@ from (
 
 drop table if exists tmp_ns_19_user_stats;
 
+update challenge_run_log
+set updated_at = clock_timestamp()
+where id in (select id from challenge_run_log where function_name = 'user_stats_weekly_update_c19' order by created_at desc limit 1);
+
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-
+ALTER FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone)
+  OWNER TO gfuser;
