@@ -1,3 +1,4 @@
+
 -- Function: public.user_stats_weekly_update_sobe_2019(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_sobe_2019(timestamp without time zone);
@@ -6,6 +7,10 @@ CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_sobe_2019(_datetime t
   RETURNS void AS
 $BODY$
 BEGIN
+
+insert into challenge_run_log (function_name, created_at, updated_at)
+select 'user_stats_weekly_update_sobe_2019' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
+
 
 DELETE from user_stats_weekly_sobe_2019 where first_day_of_week >= first_day_of_week_mon((_datetime::date - interval '7 days')::date);
 
@@ -211,11 +216,23 @@ from (
 group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)		
 ) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
 
+
+-- update for upc scans
+update user_stats_weekly_sobe_2019 mm
+set entree_scan = zz.cnt
+from (
+	select first_day_of_week_mon(u.assigned_date::date), u.user_id, count(*) as cnt from users_scan_food_summary_sb_rev u
+	where upc_code like '%632674%'
+	group by first_day_of_week_mon(u.assigned_date::date), u.user_id
+	) zz where mm.user_id = zz.user_id and mm.first_day_of_week = zz.first_day_of_week_mon;
+
+
 drop table if exists tmp_sobe_19_user_stats;  
 
+update challenge_run_log
+set updated_at = clock_timestamp()
+where id in (select id from challenge_run_log where function_name = 'user_stats_weekly_update_sobe_2019' order by created_at desc limit 1);
 
-insert into challenge_run_log (function_name, created_at, updated_at)
-select 'user_stats_weekly_update_sobe_2019' as function_name, now() as created_at, now() as updated_at;
 
 END;
 $BODY$
