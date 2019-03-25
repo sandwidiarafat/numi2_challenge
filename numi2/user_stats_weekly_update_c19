@@ -1,10 +1,15 @@
--- Function: public.user_stats_weekly_update_c19(timestamp without time zone)
+-- FUNCTION: public.user_stats_weekly_update_c19(timestamp without time zone)
 
 -- DROP FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone);
 
-CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_c19(_datetime timestamp without time zone)
-  RETURNS void AS
-$BODY$
+CREATE OR REPLACE FUNCTION public.user_stats_weekly_update_c19(
+	_datetime timestamp without time zone)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+AS $BODY$
 BEGIN
 
 insert into challenge_run_log (function_name, created_at, updated_at)
@@ -140,9 +145,9 @@ from (
 	
 	from (
 		select id, user_id, assigned_date,
-			sum(case when category_name = 'SMARTCARB' then 1 else 0  end) as smartcarb,
+			sum(case when category_name in ('SMARTCARB','ORANGE','PURPLE') then 1 else 0  end) as smartcarb,
 			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
-			sum(case when category_name = 'POWERFUEL' then 1 else 0 end) as powerfuel, 
+			sum(case when category_name in ('POWERFUEL','PINK','WHITE') then 1 else 0 end) as powerfuel, 
 			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog
 		from (
 			select id, user_id, consumable_id, assigned_date, consumable_type, 
@@ -176,9 +181,9 @@ sum(case when vegetable_quantity >= 4 then 1 else 0 end) as vegetable_hit_goal
 	
 	from (
 		select user_id, assigned_date,
-			sum(case when category_name = 'SMARTCARB' then 1 else 0  end) as smartcarb,
+			sum(case when category_name  in ('SMARTCARB','ORANGE','PURPLE') then 1 else 0  end) as smartcarb,
 			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
-			sum(case when category_name = 'POWERFUEL' then 1 else 0 end) as powerfuel, 
+			sum(case when category_name = in ('POWERFUEL','PINK','WHITE') then 1 else 0 end) as powerfuel, 
 			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog,
 			sum(case when category_name = 'VEGETABLES' then cast(value as numeric) else 0  end) as vegetable_quantity
 		from (
@@ -216,8 +221,7 @@ set updated_at = clock_timestamp()
 where id in (select id from challenge_run_log where function_name = 'user_stats_weekly_update_c19' order by created_at desc limit 1);
 
 END;
-$BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
+$BODY$;
+
 ALTER FUNCTION public.user_stats_weekly_update_c19(timestamp without time zone)
-  OWNER TO gfuser;
+    OWNER TO gfuser;
