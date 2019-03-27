@@ -30,7 +30,6 @@ from diet_histories_numi2 dh
 where  dh.assigned_date >= first_day_of_week_mon((	_datetime::date - interval '7 days')::date)
 and dh.deleted_at is null;
 
-
 INSERT INTO 
   user_stats_weekly_2019
 (
@@ -146,7 +145,7 @@ from (
 	from (
 		select id, user_id, assigned_date,
 			sum(case when category_name in ('SMARTCARB','ORANGE','PURPLE') then 1 else 0  end) as smartcarb,
-			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
+			sum(case when category_name in ('VEGETABLES','GREEN') then 1 else 0  end) as vegetable,
 			sum(case when category_name in ('POWERFUEL','PINK','WHITE') then 1 else 0 end) as powerfuel, 
 			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog
 		from (
@@ -181,11 +180,11 @@ sum(case when vegetable_quantity >= 4 then 1 else 0 end) as vegetable_hit_goal
 	
 	from (
 		select user_id, assigned_date,
-			sum(case when category_name  in ('SMARTCARB','ORANGE','PURPLE') then 1 else 0  end) as smartcarb,
-			sum(case when category_name = 'VEGETABLES' then 1 else 0  end) as vegetable,
-			sum(case when category_name = in ('POWERFUEL','PINK','WHITE') then 1 else 0 end) as powerfuel, 
+			sum(case when category_name in ('SMARTCARB','ORANGE','PURPLE') then 1 else 0  end) as smartcarb,
+			sum(case when category_name in ('VEGETABLES','GREEN') then 1 else 0  end) as vegetable,
+			sum(case when category_name in ('POWERFUEL','PINK','WHITE') then 1 else 0 end) as powerfuel, 
 			sum(case when consumable_type  = 'QuickLog' then 1 else 0 end) as quicklog,
-			sum(case when category_name = 'VEGETABLES' then cast(value as numeric) else 0  end) as vegetable_quantity
+			sum(case when category_name in ('VEGETABLES','GREEN') then cast(value as numeric) else 0  end) as vegetable_quantity
 		from (
 			select id, user_id, consumable_id, assigned_date, consumable_type, 
 				(dtl->>'id') as category_id, (dtl->>'name') as category_name, (dtl->>'display_name') as display_name, (dtl->>'value') as value  from 
@@ -202,8 +201,6 @@ sum(case when vegetable_quantity >= 4 then 1 else 0 end) as vegetable_hit_goal
 group by gg.user_id, first_day_of_week_mon(gg.assigned_date::date)
 ) hh where mm.user_id = hh.user_id and mm.first_day_of_week = hh.first_day_of_week;
 
-
-
 -- update for upc scans
 update user_stats_weekly_2019 mm
 set upc_scans = zz.cnt
@@ -212,7 +209,6 @@ from (
 	where upc_code like '%632674%'
 	group by first_day_of_week_mon(u.assigned_date::date), u.user_id
 	) zz where mm.user_id = zz.user_id and mm.first_day_of_week = zz.first_day_of_week_mon;
-
 
 drop table if exists tmp_ns_19_user_stats;
 
