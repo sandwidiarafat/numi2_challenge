@@ -31,7 +31,7 @@ select hh.user_id, hh.week_in, hh.list_id,  hh.list_start_date, hh.colname, cast
 		sum(active_days_entries) as active_days_entries, sum(active_total_duration) as active_total_duration, sum(days_logged) as days_logged,
 		sum(entree_goal) as entree_goal , sum(breakfast_goal) as breakfast_goal , sum(breakfast_recipe) as breakfast_recipe, sum(quicklog_goal) as quicklog_goal,
 		sum(lean_protein_goal) as lean_protein_goal, sum(lean_protein_count) as lean_protein_count,
-		sum(entree_scan) as entree_scan
+		sum(entree_scan) as entree_scan, sum(entree_goal) as entree_goal
 		--select * 
 		from user_stats_weekly_sobe_2019 usw
 		inner join list_users_c19_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 11  and lu.deleted_at is null
@@ -206,7 +206,6 @@ select id, user_id, challenge_id, statuses from user_challenges_cms_sobe
 except 
 select id, user_id, challenge_id, statuses from user_challenges_tracker;
 
-
 -- update run log
 update challenge_run_log
 set updated_at = clock_timestamp()
@@ -215,7 +214,6 @@ where id in (select id from challenge_run_log where function_name = 'challenge_1
 drop table if exists tmp_users_goals;
 drop table if exists tmp_users_css;
 drop table if exists tmp_success_users;
-
 
 END;
 $BODY$;
