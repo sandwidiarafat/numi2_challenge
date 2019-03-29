@@ -1,12 +1,16 @@
--- Function: public.challenge_19_update(timestamp without time zone, integer)
+-- FUNCTION: public.challenge_19_update(timestamp without time zone, integer)
 
 -- DROP FUNCTION public.challenge_19_update(timestamp without time zone, integer);
 
 CREATE OR REPLACE FUNCTION public.challenge_19_update(
-    _datetime timestamp without time zone,
-    debug_mode integer DEFAULT NULL::integer)
-  RETURNS void AS
-$BODY$
+	_datetime timestamp without time zone,
+	debug_mode integer DEFAULT NULL::integer)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+AS $BODY$
 BEGIN
 
 	
@@ -24,7 +28,8 @@ select hh.user_id, hh.week_in, hh.list_id,  hh.list_start_date, hh.colname, cast
 		sum(water_days_entries) as water_days_entries, sum(water_days_met_goal) as water_days_met_goal,
 		sum(consumed_days_entries) as consumed_days_entries,  sum(consumed_total_items_logged) as consumed_total_items_logged,
 		sum(active_days_entries) as active_days_entries, sum(active_total_duration) as active_total_duration, sum(days_logged) as days_logged,
-		sum(vegetable_goal) as vegetable_goal , sum(powerfuel_goal) as powerfuel_goal , sum(smartcarb_goal) as smartcarb_goal, sum(quicklog_goal) as quicklog_goal
+		sum(vegetable_goal) as vegetable_goal , sum(powerfuel_goal) as powerfuel_goal , sum(smartcarb_goal) as smartcarb_goal, sum(quicklog_goal) as quicklog_goal, sum(upc_scans) as upc_scans, 
+		sum(vegetable_days_logged) as vegetable_days_logged, sum(vegetable_hit_goal) as vegetable_hit_goal
 		--select * 
 		from user_stats_weekly_2019 usw
 		inner join list_users_c19 lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 14  and lu.deleted_at is null
@@ -38,7 +43,7 @@ select hh.user_id, hh.week_in, hh.list_id,  hh.list_start_date, hh.colname, cast
 ) hh where colname not in ('week_in', 'user_id', 'list_start_date' )
 and coalesce(cast(goal as integer),0) > 0;
 
---select * from tmp_users_goals
+--select * from tmp_users_goals where col_name = 'upc_scans'
 
 -- get task list
 drop table if exists tmp_users_css;
@@ -124,17 +129,8 @@ and pc.user_id is null;
 
 /* step 3 - send appboy user events ********************/
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
-select user_id, attribute_name, data_type, promo_code as data_value, campaign_stream_steps_id, list_users_id from promo_code_users where date_sent is null
-except  
-	--select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id  from appboy_user_events where campaign_stream_steps_id in (357,358)
-	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
-	inner join --campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and rule_type = 'promo_code' and   css.campaign_id in  (14);
-		(
-		select t1.user_id, css.attribute_name, css.data_type, css.id as campaign_stream_steps_id, t1.list_users_id 
-		from tmp_success_users t1
-		inner join campaign_stream_steps css on t1.campaign_stream_steps_id = css.day_in and rule_type = 'promo_code') css on aue.user_id = css.user_id 
-		and aue.campaign_stream_steps_id = css.campaign_stream_steps_id ;
-
+select user_id, attribute_name, data_type, promo_code as data_value, campaign_stream_steps_id, list_users_id from promo_code_users where date_sent is null;
+	
 update promo_code_users
 set date_sent = now()
 where date_sent is null;
@@ -149,31 +145,18 @@ from  (
 	inner join campaign_stream_steps css on t1.campaign_stream_steps_id = css.day_in and rule_type = 'promo_code' 
 	inner join (select id, attribute_name, campaign_id, data_type, week_in, day_in from campaign_stream_steps where rule_type = 'promo_code_end_date' and campaign_id = 14) css2 on css.week_in = css2.week_in
 	group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
-) gg
-except	
-		select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
-		inner join 
-		 (
-			select  t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in--, t1.list_start_date
-			from tmp_success_users t1
-			inner join list_users_c19 lu on t1.user_id = lu.user_id
-			inner join campaign_stream_steps css on t1.campaign_stream_steps_id = css.day_in and rule_type = 'promo_code' 
-			inner join (select id, attribute_name, campaign_id, data_type, week_in, day_in from campaign_stream_steps where rule_type = 'promo_code_end_date' and campaign_id = 14) css2 on css.week_in = css2.week_in
-			group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
-		) zz on aue.user_id = zz.user_id and aue.campaign_stream_steps_id = zz.id;
+) gg;
+
 
 /* send success step 4 */
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
-select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id from tmp_success_users
-except  
-	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
-	inner join tmp_success_users tsu on tsu.user_id = aue.user_id and tsu.campaign_stream_steps_id = aue.campaign_stream_steps_id;
+select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id from tmp_success_users;
 
 /* insert success into user challenge table */
 insert into user_challenges_cms (user_id, challenge_id, statuses)
 select tt.user_id, tt.challenge_id, tt.statuses from (
 	select ts.user_id, css.week_in as challenge_id, case when css.statuses = 'BONUS' then 'RECIPE' else statuses end as statuses  from tmp_success_users ts
-	inner join campaign_stream_steps css on ts.campaign_stream_steps_id = css.id
+	inner join campaign_stream_steps css on ts.campaign_stream_steps_id = css.id and css.week_in <> 7
 	except select user_id, challenge_id, statuses from user_challenges_cms
 	) tt
 order by tt.user_id, tt.challenge_id, case when tt.statuses = 'TASK' then 1 when tt.statuses = 'RECIPE' then 2 else 3 end;
@@ -209,10 +192,8 @@ drop table if exists tmp_users_goals;
 drop table if exists tmp_users_css;
 drop table if exists tmp_success_users;
 
-
 END;
-$BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
+$BODY$;
+
 ALTER FUNCTION public.challenge_19_update(timestamp without time zone, integer)
-  OWNER TO gfuser;
+    OWNER TO gfuser;
