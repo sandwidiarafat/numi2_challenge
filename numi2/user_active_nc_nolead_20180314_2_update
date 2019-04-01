@@ -1,0 +1,94 @@
+-- FUNCTION: public.user_active_nc_nolead_20180314_2_update(date)
+
+-- DROP FUNCTION public.user_active_nc_nolead_20180314_2_update(date);
+
+CREATE OR REPLACE FUNCTION public.user_active_nc_nolead_20180314_2_update(
+	st_date date)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 1000
+    VOLATILE 
+AS $BODY$
+BEGIN
+
+--insert into user_active_nc_nolead_20180314_1(assigned_date, user_id)
+
+drop table if exists tmp_users_v2;
+create temp table tmp_users_v2(assigned_date date, user_id integer, type varchar(50), id integer);
+
+insert into tmp_users_v2 (assigned_date, user_id, type, id)
+select
+st_date as assigned_date, 
+a.user_id, a.type, a.id from (
+select dh.user_id as user_id, 'diet' as type, dh.id
+from diet_histories dh
+--where dh.created_at >= st_date and dh.created_at < st_date + interval '1 day'
+where dh.created_at >= st_date and dh.created_at < st_date + interval '1 day' -- change to created_at
+union all
+select ah.user_id as user_id, 'activity' as type, ah.id
+from activity_histories ah
+where  ah.created_at >= st_date and ah.created_at < st_date + interval '1 day'
+and (external_source is null) --or external_source not in ('withings','jawbone','striiv','fitbit'))
+union all
+select w.user_id as user_id, 'water' as type, w.id
+from waters w
+where  w.created_at >= st_date and w.created_at < st_date + interval '1 day'
+union all
+select wh.user_id as user_id, 'weight' as type, wh.id
+from weight_histories wh where wh.created_at >= st_date and wh.created_at < st_date + interval '1 day'
+union all
+select p.user_id  as user_id, 'profile' as type, p.id
+from profiles p 
+where p.created_at >= st_date and p.created_at < st_date + interval '1 day'
+/*
+union all
+select v.user_id as user_id, 'version' as type, v.id
+from versions v
+inner join profiles p on v.user_id = p.user_id
+where v.created_at >= st_date and  v.created_at < st_date + interval '1 day'
+*/
+union all
+select dh2.user_id as user_id, 'diet' as type, dh2.id
+from diet_histories_numi2 dh2
+--where dh2.created_at >= st_date and dh2.created_at < st_date + interval '1 day'
+where dh2.created_at >= st_date and dh2.created_at < st_date + interval '1 day'
+union all
+select ah2.user_id as user_id, 'activity' as type, ah2.id
+from activity_histories_numi2 ah2
+where  ah2.created_at >= st_date and ah2.created_at < st_date + interval '1 day'
+and (ah2.external_source is null) --or external_source not in ('withings','jawbone','striiv','fitbit'))
+union all
+select w2.user_id as user_id, 'water' as type, w2.id
+from waters_numi2 w2
+where  w2.created_at >= st_date and w2.created_at < st_date + interval '1 day'
+union all
+select wh2.user_id as user_id, 'weight' as type, wh2.id
+from weights_numi2 wh2 where wh2.created_at >= st_date and wh2.created_at < st_date + interval '1 day'
+union all
+select p2.user_id  as user_id, 'profile' as type, p2.id
+from profiles_numi2 p2 
+where p2.created_at  >= st_date and p2.created_at < st_date + interval '1 day'
+) a;
+
+create index "idx_tmp_users_v2_user_id" on tmp_users_v2 using btree(user_id);
+
+insert into user_active_nc_nolead_20180314_2(user_id, assigned_date, diet, activity, weight, water, profile, version)
+select user_id, assigned_date, 
+count(case when type = 'diet' then 1 end) as diet,
+sum(case when type = 'activity' then 1 else 0 end)::integer as activity,
+sum(case when type = 'weight' then 1 else 0 end)::integer as weight,
+sum(case when type = 'water' then 1 else 0 end)::integer as water,
+sum(case when type = 'profile' then 1 else 0 end)::integer as profile,
+sum(case when type = 'version' then 1 else 0 end)::integer as version
+from tmp_users_v2
+group by user_id, assigned_date;
+
+drop table tmp_users_v2;
+--drop table tmp_users_v2_summary;
+
+END;
+$BODY$;
+
+ALTER FUNCTION public.user_active_nc_nolead_20180314_2_update(date)
+    OWNER TO gfuser;
