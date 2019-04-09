@@ -31,7 +31,7 @@ select hh.user_id, hh.week_in, hh.list_id,  hh.list_start_date, hh.colname, cast
 		sum(active_days_entries) as active_days_entries, sum(active_total_duration) as active_total_duration, sum(days_logged) as days_logged,
 		sum(entree_goal) as entree_goal , sum(breakfast_goal) as breakfast_goal , sum(breakfast_recipe) as breakfast_recipe, sum(quicklog_goal) as quicklog_goal,
 		sum(lean_protein_goal) as lean_protein_goal, sum(lean_protein_count) as lean_protein_count,
-		sum(entree_scan) as entree_scan, sum(entree_goal) as entree_goal
+		sum(entree_scan) as entree_scan, sum(entree_goal) as entree_goal, sum(recipe_logged) as recipe_logged, sum(active_days_met_goal) as active_days_met_goal
 		--select * 
 		from user_stats_weekly_sobe_2019 usw
 		inner join list_users_c19_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 11  and lu.deleted_at is null
@@ -144,6 +144,7 @@ update promo_code_users_sb
 set date_sent = now()
 where date_sent is null;
 
+/*  exclude end date
 -- promo code end date step 3a
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select gg.user_id, gg.attribute_name, gg.data_type, to_char(gg.list_start_date::date + gg.day_in * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, gg.id as campaign_stream_steps_id, gg.list_users_id
@@ -167,12 +168,41 @@ except
 			group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
 		) zz on aue.user_id = zz.user_id and aue.campaign_stream_steps_id = zz.id;
 
+*/
+	
+-- promo code end date step 3a added for all task and bonus success
+insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select gg.user_id, gg.attribute_name, gg.data_type, to_char(gg.list_start_date::date + gg.day_in * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, gg.id as campaign_stream_steps_id, gg.list_users_id
+from  (
+	select  t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
+	--select *
+	from tmp_success_users t1
+	inner join list_users_c19_sobe lu on t1.user_id = lu.user_id
+	inner join campaign_stream_steps_sobe css on t1.campaign_stream_steps_id = css.id --and rule_type = 'promo_code_end_date' 
+	inner join (select id, attribute_name, campaign_id, data_type, week_in, day_in from campaign_stream_steps_sobe where rule_type = 'promo_code_end_date' and campaign_id = 11) css2 on css.week_in = css2.week_in
+	group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
+) gg
+except	
+		select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+		inner join 
+		 (
+			select  t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
+			--select *
+			from tmp_success_users t1
+			inner join list_users_c19_sobe lu on t1.user_id = lu.user_id
+			inner join campaign_stream_steps_sobe css on t1.campaign_stream_steps_id = css.id --and rule_type = 'promo_code_end_date' 
+			inner join (select id, attribute_name, campaign_id, data_type, week_in, day_in from campaign_stream_steps_sobe where rule_type = 'promo_code_end_date' and campaign_id = 11) css2 on css.week_in = css2.week_in
+			group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
+		) zz on aue.user_id = zz.user_id and aue.campaign_stream_steps_id = zz.id;
+
+	
 /* send success step 4 */
 insert into appboy_user_events_sb (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id from tmp_success_users
 except  
 	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 	inner join tmp_success_users tsu on tsu.user_id = aue.user_id and tsu.campaign_stream_steps_id = aue.campaign_stream_steps_id;
+
 
 /* insert success into user challenge table */
 insert into user_challenges_cms_sobe (user_id, challenge_id, statuses)
