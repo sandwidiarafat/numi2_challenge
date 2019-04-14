@@ -1,0 +1,114 @@
+-- FUNCTION: public.numi_retention_update(date)
+
+-- DROP FUNCTION public.numi_retention_update(date);
+
+CREATE OR REPLACE FUNCTION public.numi_retention_update(
+	_ddate date)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 1000
+    VOLATILE 
+AS $BODY$
+
+
+declare _start_dt date;
+declare _end_dt date;
+
+begin
+	
+select (first_day_of_week - interval '7 day')::date into _start_dt from dim_date where date = _ddate::date;
+select (last_day_of_week - interval '7 day')::date into _end_dt from dim_date where date = _ddate::date;
+
+-- step 1
+delete from user_active_nc_nolead_20180314_2 where assigned_date between _start_dt and _end_dt;
+
+-- step 2
+perform user_active_nc_nolead_20180314_2_update(a::date)
+from generate_series(_start_dt, _end_dt, '1day'::interval) s(a);
+
+
+/* step 3 update view only records */
+insert into user_active_nc_nolead_20180314_2 (user_id, assigned_date, view_only) 
+select aa.user_id, aa.assigned_date, 'true' as view_only from (
+	select user_id, assigned_date from numi_requests_converted_production_2018_reload tt where tt.user_id is not null
+	except select user_id, assigned_date from user_active_nc_nolead_20180314_2 zz ) aa
+inner join (select user_id, min(profile_created_date) as profile_created_date from user_active_nc_nolead_20180314_2 group by user_id) vv on aa.user_id = vv.user_id 
+and aa.assigned_date >= vv.profile_created_date
+order by aa.user_id, aa.assigned_date;
+
+/*
+-- step 4 update for users with now entry
+update  user_active_nc_nolead_20180314_2
+set no_entry = null
+where no_entry is not null;
+
+update  user_active_nc_nolead_20180314_2
+set no_entry = 1
+where user_id in
+(
+		select user_id from (
+		select user_id, sum(diet) as diet, sum(activity) as activity, sum(water) as water, sum(weight) as weight, count(*) as cnt
+		from user_active_nc_nolead_20180314_2 
+		group by user_id
+		order by user_id
+		) tt
+		where 
+		diet = 0 and activity = 0 and water = 0 and weight < 2 and cnt < 2
+		);
+
+	
+-- step 5 update no activity exclude views
+update  user_active_nc_nolead_20180314_2
+set no_activity_exclude_views  = null
+where no_activity_exclude_views  is not null;
+
+
+
+update   user_active_nc_nolead_20180314_2
+set no_activity_exclude_views = 1
+where user_id in
+(
+		select user_id from (
+		select user_id, sum(diet) as diet, sum(activity) as activity, sum(water) as water, sum(weight) as weight, count(*) as cnt
+		from (select * from user_active_nc_nolead_20180314_2 
+		where view_only is null
+		) zz
+		group by user_id
+		order by user_id
+		) tt
+		where 
+		diet = 0 and activity = 0 and water = 0 and weight < 2 and cnt < 2
+		);
+
+*/
+-- step 6.1 update existing users profiles
+update user_active_nc_nolead_20180314_2 aa
+set profile_created_date = bb.profile_created_date
+from (
+	select t.user_id, t.profile_created_date from (
+	select user_id, profile_created_date from user_active_nc_nolead_20180314_2
+	where profile_created_date is not  null
+	group by 1, 2
+	) t
+	where user_id in 
+	(select distinct(user_id) from user_active_nc_nolead_20180314_2 where profile_created_date is null)
+) bb where aa.user_id = bb.user_id
+and aa.profile_created_date is null;
+
+-- step 6.2 update new user profiles	
+update user_active_nc_nolead_20180314_2 aa
+set profile_created_date = bb.created_at
+from (
+select user_id, created_at from profiles_numi2
+where user_id in 
+(select distinct(user_id) from user_active_nc_nolead_20180314_2 where profile_created_date is null) ) bb
+where aa.user_id = bb.user_id
+and aa.profile_created_date is null;
+
+
+end
+$BODY$;
+
+ALTER FUNCTION public.numi_retention_update(date)
+    OWNER TO gfuser;
