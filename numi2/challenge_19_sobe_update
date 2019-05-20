@@ -48,16 +48,16 @@ and coalesce(cast(goal as integer),0) > 0;
 drop table if exists tmp_users_css;
 create temp table tmp_users_css (list_id integer, list_start_date date, campaign_stream_steps_id integer, day_start integer, day_end integer, campaign_sequence integer, date_diff integer, 
 dt_start date, dt_end date,
-week_in integer, col_name varchar(255), goal integer, rule_type varchar(255), attribute_name varchar(255), data_type varchar(255), data_value varchar(255));
+week_in integer, col_name varchar(255), goal integer, rule_type varchar(255), attribute_name varchar(255), data_type varchar(255), data_value varchar(255), tier boolean, task_number integer, statuses varchar(255) );
 
 --select * from tmp_users_css
 insert into tmp_users_css( list_id, list_start_date, campaign_stream_steps_id, day_start, day_end, campaign_sequence, date_diff, dt_start, dt_end, 
-	week_in, col_name, goal, rule_type, attribute_name, data_type, data_value)
+	week_in, col_name, goal, rule_type, attribute_name, data_type, data_value, tier, task_number, statuses)
 select l.id as list_id, l.list_start_date, css.id as campaign_stream_steps_id, css.day_start, css.day_end, 
 css.campaign_sequence, datediff('day', l.list_start_date::date, _datetime::date) as date_diff,
 l.list_start_date::date + css.day_start as dt_start, 
 l.list_start_date::date + css.day_end - 1 as dt_end, 
-css.week_in, css.col_name, css.goal, css.rule_type, css.attribute_name, css.data_type, css.data_value
+css.week_in, css.col_name, css.goal, css.rule_type, css.attribute_name, css.data_type, css.data_value, css.tier, css.task_number, css.statuses
 from lists_sobe  l
 inner join campaign_stream_steps_sobe css on datediff('day', l.list_start_date::date, _datetime::date)  
 between day_start and day_end and
@@ -93,7 +93,33 @@ insert into tmp_success_users (user_id, attribute_name, data_type, data_value, c
 select g.user_id, c.attribute_name, c.data_type, c.data_value as data_value, c.campaign_stream_steps_id, g.list_id as list_users_id
 from tmp_users_goals g
 inner join tmp_users_css c on g.list_id = c.list_id and g.col_name = c.col_name
-where c.rule_type = 'result_status_success' 
+where c.rule_type = 'result_status_success'  and tier = false
+and g.goal >= c.goal
+	except 
+	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
+	inner join campaign_stream_steps_sobe css on aue.campaign_stream_steps_id = css.id and rule_type = 'result_status_success' and   css.campaign_id in  (11);
+
+/** tiered success summary **/
+-- insert success summary for tiered 
+drop table if exists tmp_success_tier;
+create temp table tmp_success_tier (user_id integer, list_users_id integer, statuses varchar(255), task_number integer);
+
+--step 1 - for tiered successes insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+insert into tmp_success_tier (user_id, list_users_id, statuses, task_number)
+select g.user_id, g.list_id as list_users_id, c.statuses, max(task_number) as task_number
+from tmp_users_goals g
+inner join tmp_users_css c on g.list_id = c.list_id and g.col_name = c.col_name
+where c.rule_type = 'result_status_success'  and tier = true
+and g.goal >= c.goal
+group by g.user_id, g.list_id, c.statuses
+
+-- setp 2
+insert into tmp_success_users (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+select g.user_id, c.attribute_name, c.data_type, c.data_value as data_value, c.campaign_stream_steps_id, g.list_id as list_users_id
+from tmp_users_goals g
+inner join tmp_users_css c on g.list_id = c.list_id and g.col_name = c.col_name
+inner join tmp_success_tier t1 on t1.user_id = g.user_id and c.statuses = t1.statuses and c.task_number = t1.task_number
+where c.rule_type = 'result_status_success'  and tier = true
 and g.goal >= c.goal
 	except 
 	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
@@ -181,7 +207,7 @@ from  (
 	inner join campaign_stream_steps_sobe css on t1.campaign_stream_steps_id = css.id --and rule_type = 'promo_code_end_date' 
 	inner join (select id, attribute_name, campaign_id, data_type, week_in, day_in from campaign_stream_steps_sobe where rule_type = 'promo_code_end_date' and campaign_id = 11) css2 on css.week_in = css2.week_in
 	group by t1.user_id, css2.attribute_name, css2.data_type, css2.id, t1.list_users_id, css2.week_in, css2.day_in, lu.list_start_date
-) gg where list_users_id = 50
+) gg 
 except	
 		select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events_sb aue
 		inner join 
