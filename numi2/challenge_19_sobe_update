@@ -111,7 +111,7 @@ from tmp_users_goals g
 inner join tmp_users_css c on g.list_id = c.list_id and g.col_name = c.col_name
 where c.rule_type = 'result_status_success'  and tier = true
 and g.goal >= c.goal
-group by g.user_id, g.list_id, c.statuses
+group by g.user_id, g.list_id, c.statuses;
 
 -- setp 2
 insert into tmp_success_users (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
