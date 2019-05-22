@@ -1,6 +1,3 @@
--- FUNCTION: public.challenge_19_update(timestamp without time zone, integer)
-
--- DROP FUNCTION public.challenge_19_update(timestamp without time zone, integer);
 
 CREATE OR REPLACE FUNCTION public.challenge_19_update(
 	_datetime timestamp without time zone,
@@ -189,6 +186,10 @@ update user_challenges_cms
 set challenge_id = 7
 where challenge_id = 8;
 
+update user_challenges_cms
+set challenge_id = 8
+where challenge_id = 9;
+
 -- success expiration step 5
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 select t1.user_id, t1.attribute_name, t1.data_type, t1.data_value, t1.campaign_stream_steps_id, t1.list_users_id from (
@@ -226,3 +227,4 @@ $BODY$;
 
 ALTER FUNCTION public.challenge_19_update(timestamp without time zone, integer)
     OWNER TO gfuser;
+   
