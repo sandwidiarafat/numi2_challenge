@@ -1,4 +1,5 @@
 
+
 CREATE OR REPLACE FUNCTION public.challenge_19_update(
 	_datetime timestamp without time zone,
 	debug_mode integer DEFAULT NULL::integer)
@@ -120,7 +121,6 @@ and g.goal >= c.goal
 	select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 	inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type = 'result_status_success' and   css.campaign_id in  (14);
 
-
 /* step 1 promo codes */
 insert into promo_code_users  (user_id, attribute_name, data_type, campaign_stream_steps_id, list_users_id)
 select t1.user_id, css.attribute_name, css.data_type, css.id as campaign_stream_steps_id, t1.list_users_id 
@@ -176,12 +176,13 @@ select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id,
 /* insert success into user challenge table */
 insert into user_challenges_cms (user_id, challenge_id, statuses)
 select tt.user_id, tt.challenge_id, tt.statuses from (
-	select ts.user_id, css.week_in as challenge_id, case when css.statuses = 'BONUS' then 'RECIPE' else statuses end as statuses  from tmp_success_users ts
+	select ts.user_id, case when css.week_in = 8 then 7 when css.week_in = 9 then 8 else css.week_in end as challenge_id, case when css.statuses = 'BONUS' then 'RECIPE' else statuses end as statuses  from tmp_success_users ts
 	inner join campaign_stream_steps css on ts.campaign_stream_steps_id = css.id and css.week_in <> 7
 	except select user_id, challenge_id, statuses from user_challenges_cms
 	) tt
 order by tt.user_id, tt.challenge_id, case when tt.statuses = 'TASK' then 1 when tt.statuses = 'RECIPE' then 2 else 3 end;
 
+/*
 update user_challenges_cms
 set challenge_id = 7
 where challenge_id = 8;
@@ -189,6 +190,7 @@ where challenge_id = 8;
 update user_challenges_cms
 set challenge_id = 8
 where challenge_id = 9;
+*/
 
 -- success expiration step 5
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
@@ -227,4 +229,3 @@ $BODY$;
 
 ALTER FUNCTION public.challenge_19_update(timestamp without time zone, integer)
     OWNER TO gfuser;
-   
