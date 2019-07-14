@@ -1,4 +1,6 @@
+-- FUNCTION: public.challenge_19_update(timestamp without time zone, integer)
 
+-- DROP FUNCTION public.challenge_19_update(timestamp without time zone, integer);
 
 CREATE OR REPLACE FUNCTION public.challenge_19_update(
 	_datetime timestamp without time zone,
@@ -176,7 +178,7 @@ select user_id, attribute_name, data_type, data_value, campaign_stream_steps_id,
 /* insert success into user challenge table */
 insert into user_challenges_cms (user_id, challenge_id, statuses)
 select tt.user_id, tt.challenge_id, tt.statuses from (
-	select ts.user_id, case when css.week_in = 8 then 7 when css.week_in = 9 then 8 else css.week_in end as challenge_id, case when css.statuses = 'BONUS' then 'RECIPE' else statuses end as statuses  from tmp_success_users ts
+	select ts.user_id, case when css.week_in = 8 then 7 when css.week_in = 9 then 8  when css.week_in = 10 then 9 when css.week_in = 11 then 10  else css.week_in end as challenge_id, case when css.statuses = 'BONUS' then 'RECIPE' else statuses end as statuses  from tmp_success_users ts
 	inner join campaign_stream_steps css on ts.campaign_stream_steps_id = css.id and css.week_in <> 7
 	except select user_id, challenge_id, statuses from user_challenges_cms
 	) tt
@@ -229,3 +231,4 @@ $BODY$;
 
 ALTER FUNCTION public.challenge_19_update(timestamp without time zone, integer)
     OWNER TO gfuser;
+
