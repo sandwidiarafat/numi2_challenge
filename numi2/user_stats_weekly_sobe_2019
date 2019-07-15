@@ -246,6 +246,3 @@ $BODY$;
 
 ALTER FUNCTION public.user_stats_weekly_update_sobe_2019(timestamp without time zone)
     OWNER TO gfuser;
-   
-   
-
