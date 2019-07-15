@@ -121,23 +121,25 @@ group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
 left join 
 /************** activity ************************/
 (
-	select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(dly_duration) as activity_wkly_duration, sum(act_entries) as act_entries,  count(act_entries) as days_act_entries, 
+select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(dly_duration) as activity_wkly_duration, sum(act_entries) as act_entries,  count(act_entries) as days_act_entries, 
 	sum(days_met_goal) as act_days_met_goal
 	from (
-	select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww2.c_cnt as act_entries, case when s_sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
+	select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww.c_cnt as act_entries, case when s_sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
 	
 	from 
-		(SELECT w.user_id, w.assigned_date, w.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w) ww
-		
-		left join (SELECT w.user_id, w.assigned_date, (SELECT count(s) FROM UNNEST(duration) s) as c_cnt  from activities_tracker w) ww2 on ww.user_id = ww2.user_id and ww.assigned_date = ww2.assigned_date
+		(select 	w.user_id, w.assigned_date, sum(goal) as goal, sum(s_sum) as s_sum, count(*) as c_cnt from (
+			SELECT w1.user_id, w1.assigned_date, w1.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w1 
+				union 
+			SELECT dw2.user_id, dw2.assigned_date, null as goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from device_activities_tracker dw2
+		) w group by w.user_id, w.assigned_date) ww
 		where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
-		--and ww.user_id = 344
 	) aa
 		group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
 	
 	) active on p.user_id = active.user_id and td.a = active.first_day_of_week
 
 left join 
+
 /**** distinct logging by date ***/
 (
 select user_id, first_day_of_week_mon(tt.assigned_date::date) as first_day_of_week, count(*) as days_logged from (
