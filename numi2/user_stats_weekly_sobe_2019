@@ -20,6 +20,53 @@ DELETE from user_stats_weekly_sobe_2019 where first_day_of_week >= first_day_of_
 
 perform SETVAL('user_stats_weekly_sobe_2019_id_seq', coalesce((select max(id)+1 from user_stats_weekly_sobe_2019), 1), false); 
 
+-- step 1 get activivites for manual entered activities and connected devices
+drop table if exists tmp_sb_19_act_track; 
+create temp table tmp_sb_19_act_track (user_id integer, assigned_date date, dly_duration integer, act_entries integer, days_met_goal integer, goal integer);
+
+insert into tmp_sb_19_act_track (user_id, assigned_date, dly_duration, act_entries)
+select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww.c_cnt as act_entries
+	from 
+	(select 	w.user_id, w.assigned_date, sum(goal) as goal, sum(s_sum) as s_sum, count(*) as c_cnt from (
+		SELECT w1.user_id, w1.assigned_date, w1.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w1 
+			union 
+		SELECT dw2.user_id, dw2.assigned_date, null as goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from device_activities_tracker dw2
+	) w group by w.user_id, w.assigned_date) ww
+	where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date);
+	
+-- step 2 get activity goals
+drop table if exists tmp_sb_19_act_goal; 
+create temp table tmp_sb_19_act_goal (user_id integer, assigned_date date, goal integer, prev_goal integer, next_goal integer, prev_date date, next_date date);
+
+insert into tmp_sb_19_act_goal (user_id, assigned_date, goal, prev_goal, next_goal)
+select t3.user_id, t3.assigned_date, t3.goal, t3.prev_goal, t3.next_goal from (
+select t2.user_id, t2.assigned_date, t2.goal, case when t2.prev_goal is null then 0 else t2.prev_goal end as prev_goal, case when t2.next_goal is null then 0 else t2.next_goal end as next_goal from (
+	select t.user_id, t.assigned_date, t.goal, lead(t.goal) over (order by t.user_id, t.assigned_date desc) as prev_goal, lag(goal) over (partition by t.user_id order by t.assigned_date desc) as next_goal 
+	from activities_tracker t where user_id in (select distinct user_id from tmp_sb_19_act_track) order by t.user_id, t.assigned_date desc
+	) t2
+	) t3;
+
+-- step 3 update acitvity goals for min and max date range
+update tmp_sb_19_act_track gg
+set goal = zz.goal
+from (
+	select t1.user_id, t1.assigned_date, t1.goal, t1.prev_goal, t1.next_goal, 
+	--lead(t1.assigned_date) over (order by t1.user_id, assigned_date desc) as prev_date_zz,  
+	lag(t1.assigned_date) over (partition by t1.user_id order by  t1.assigned_date desc) as next_date_zz
+	from tmp_sb_19_act_goal t1 order by t1.user_id, t1.assigned_date desc
+	) zz where gg.user_id = zz.user_id  and gg.assigned_date between zz.assigned_date and  case when zz.next_date_zz is null then now()::date + 2 else zz.next_date_zz - 1 end;
+
+-- set nulls to 30 minutes	
+update tmp_sb_19_act_track gg
+set goal = 30
+where goal is null;
+
+-- update for days met goal
+update tmp_sb_19_act_track gg
+set days_met_goal = case when dly_duration >= goal then 1 else 0 end;
+
+--select * from tmp_sb_19_act_track order by user_id, assigned_date desc;
+
 
 INSERT INTO 
   user_stats_weekly_sobe_2019
@@ -122,20 +169,9 @@ left join
 /************** activity ************************/
 (
 select aa.user_id, first_day_of_week_mon(aa.assigned_date::date) as first_day_of_week, sum(dly_duration) as activity_wkly_duration, sum(act_entries) as act_entries,  count(act_entries) as days_act_entries, 
-	sum(days_met_goal) as act_days_met_goal
-	from (
-	select ww.user_id, cast(ww.assigned_date as date) , ww.s_sum as dly_duration, ww.c_cnt as act_entries, case when s_sum >=  ww.goal then 1 else 0 end as days_met_goal, ww.goal
-	
-	from 
-		(select 	w.user_id, w.assigned_date, sum(goal) as goal, sum(s_sum) as s_sum, count(*) as c_cnt from (
-			SELECT w1.user_id, w1.assigned_date, w1.goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from activities_tracker w1 
-				union 
-			SELECT dw2.user_id, dw2.assigned_date, null as goal, (SELECT sum(s) FROM UNNEST(duration) s) as s_sum  from device_activities_tracker dw2
-		) w group by w.user_id, w.assigned_date) ww
-		where cast(ww.assigned_date as date) >= first_day_of_week_mon((_datetime::date - interval '7 days')::date)
-	) aa
-		group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
-	
+	sum(days_met_goal) as act_days_met_goal  
+	from tmp_sb_19_act_track aa
+group by aa.user_id, first_day_of_week_mon(aa.assigned_date::date)
 	) active on p.user_id = active.user_id and td.a = active.first_day_of_week
 
 left join 
