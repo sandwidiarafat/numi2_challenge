@@ -41,6 +41,7 @@ INSERT INTO
    created_at, updated_at
 )
 
+
 select  p.user_id, null as plan_start_date, 
 td.a as first_day_of_week,
 weight.lbs_lost as weight_lbs_lost, weight.wh_entries as weight_entries, water.water_consumed, 
