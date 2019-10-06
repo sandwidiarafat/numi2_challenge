@@ -222,7 +222,8 @@ delete from tmp_sobe_19_user_stats  where consumable_type not like ('QuickLog') 
 
 update user_stats_weekly_sobe_2019 mm
 set entree_goal = entree_days, breakfast_goal = breakfast_days, breakfast_recipe = breakfast_recipe_entries, quicklog_goal = quicklog_entries, 
-	lean_protein_goal = leanprotein_days,  lean_protein_count = leanprotein_entries, recipe_logged = recipe_entries
+	lean_protein_goal = leanprotein_days,  lean_protein_count = leanprotein_entries, recipe_logged = recipe_entries, 
+	fruit_count = fruit_cnt , vegetable_count = vegetable_cnt, vegetable_fruit_count = vegetable_fruit_cnt
 	from (
 select gg.user_id, first_day_of_week_mon(gg.assigned_date::date) as first_day_of_week, sum(case when entree > 0 then 1 else 0 end) as entree_days, 
 sum(case when breakfast > 0 then 1 else 0 end) as breakfast_days, 
@@ -231,8 +232,8 @@ sum(leanprotein) as leanprotein_entries,
 sum(quicklog) as quicklog_entries,
 sum(breakfast_recipe) as breakfast_recipe_entries,
 sum(recipe) as recipe_entries,
-sum(vegetable) as vegetable_count,
-sum(fruit) as fruit_count, sum(vegetable) + sum(fruit) as vegetable_fruit_count
+sum(vegetable) as vegetable_cnt,
+sum(fruit) as fruit_cnt, sum(vegetable) + sum(fruit) as vegetable_fruit_cnt
 from (
 	select user_id, assigned_date, sum(sb_entree_cnt) as entree, sum(sb_breakfast_cnt) as breakfast, sum(sb_lean_protein_cnt) as leanprotein, sum(quicklog_cnt) as quicklog, 
 		sum(case when breakfast_recipe_cnt > 0 then 1 else 0 end) breakfast_recipe,
