@@ -1,16 +1,7 @@
--- FUNCTION: public.challenge_19_sobe_update(timestamp without time zone, integer)
-
--- DROP FUNCTION public.challenge_19_sobe_update(timestamp without time zone, integer);
-
-CREATE OR REPLACE FUNCTION public.challenge_19_sobe_update(
-	_datetime timestamp without time zone,
-	debug_mode integer DEFAULT NULL::integer)
-    RETURNS void
-    LANGUAGE 'plpgsql'
-
-    COST 100
-    VOLATILE 
-AS $BODY$
+CREATE OR REPLACE FUNCTION public.challenge_19_sobe_update(_datetime timestamp without time zone, debug_mode integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
 
 	
@@ -31,7 +22,8 @@ select hh.user_id, hh.week_in, hh.list_id,  hh.list_start_date, hh.colname, cast
 		sum(active_days_entries) as active_days_entries, sum(active_total_duration) as active_total_duration, sum(days_logged) as days_logged,
 		sum(entree_goal) as entree_goal , sum(breakfast_goal) as breakfast_goal , sum(breakfast_recipe) as breakfast_recipe, sum(quicklog_goal) as quicklog_goal,
 		sum(lean_protein_goal) as lean_protein_goal, sum(lean_protein_count) as lean_protein_count,
-		sum(entree_scan) as entree_scan, sum(entree_goal) as entree_goal, sum(recipe_logged) as recipe_logged, sum(active_days_met_goal) as active_days_met_goal
+		sum(entree_scan) as entree_scan, sum(entree_goal) as entree_goal, sum(recipe_logged) as recipe_logged, sum(active_days_met_goal) as active_days_met_goal,
+		sum(vegetable_fruit_count) as vegetable_fruit_count
 		--select * 
 		from user_stats_weekly_sobe_2019 usw
 		inner join list_users_c19_sobe lu on lu.user_id = usw.user_id and lu.deleted_at is null and lu.campaign_id = 11  and lu.deleted_at is null
@@ -272,7 +264,5 @@ drop table if exists tmp_users_css;
 drop table if exists tmp_success_users;
 
 END;
-$BODY$;
-
-ALTER FUNCTION public.challenge_19_sobe_update(timestamp without time zone, integer)
-    OWNER TO gfuser;
+$function$
+;
