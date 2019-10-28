@@ -110,5 +110,6 @@ and aa.profile_created_date is null;
 end
 $BODY$;
 
+
 ALTER FUNCTION public.numi_retention_update(date)
     OWNER TO gfuser;
