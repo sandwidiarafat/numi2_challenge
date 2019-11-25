@@ -263,6 +263,7 @@ drop table if exists tmp_users_goals;
 drop table if exists tmp_users_css;
 drop table if exists tmp_success_users;
 
+
 END;
 $function$
 ;
