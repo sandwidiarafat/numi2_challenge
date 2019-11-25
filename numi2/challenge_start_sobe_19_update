@@ -1,18 +1,7 @@
-
-
--- FUNCTION: public.challenge_start_sobe_19_update(timestamp without time zone, integer)
-
--- DROP FUNCTION public.challenge_start_sobe_19_update(timestamp without time zone, integer);
-
-CREATE OR REPLACE FUNCTION public.challenge_start_sobe_19_update(
-	_datetime timestamp without time zone,
-	debug_mode integer DEFAULT NULL::integer)
-    RETURNS void
-    LANGUAGE 'plpgsql'
-
-    COST 100
-    VOLATILE 
-AS $BODY$
+CREATE OR REPLACE FUNCTION public.challenge_start_sobe_19_update(_datetime timestamp without time zone, debug_mode integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
 
 insert into challenge_run_log (function_name, created_at, updated_at)
@@ -78,7 +67,5 @@ set updated_at = clock_timestamp()
 where id in (select id from challenge_run_log where function_name = 'challenge_start_sobe_19_update' order by created_at desc limit 1);
 
 END;
-$BODY$;
-
-ALTER FUNCTION public.challenge_start_sobe_19_update(timestamp without time zone, integer)
-    OWNER TO gfuser;
+$function$
+;
