@@ -1,21 +1,33 @@
--- FUNCTION: public.challenge_19_update(timestamp without time zone, integer)
 
--- DROP FUNCTION public.challenge_19_update(timestamp without time zone, integer);
-
-CREATE OR REPLACE FUNCTION public.challenge_19_update(
-	_datetime timestamp without time zone,
-	debug_mode integer DEFAULT NULL::integer)
-    RETURNS void
-    LANGUAGE 'plpgsql'
-
-    COST 100
-    VOLATILE 
-AS $BODY$
+CREATE OR REPLACE FUNCTION public.challenge_19_update(_datetime timestamp without time zone, debug_mode integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
 
 	
 insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_19_update' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
+
+
+drop table if exists tmp_css_numi;
+create temp table tmp_css_numi (list_id integer, list_start_date date, campaign_stream_steps_id integer, campaign_id integer, attribute_name varchar, data_type varchar, data_value varchar, rule_type varchar, week_in integer, day_in integer, 
+day_start integer, day_end integer, campaign_sequence_id integer, col_name varchar, goal integer, statuses varchar,  tier boolean, valid boolean);
+
+insert into tmp_css_numi (list_id, list_start_date, campaign_stream_steps_id, campaign_id, attribute_name, data_type, data_value, rule_type, week_in, day_in, day_start, day_end, campaign_sequence_id, col_name, goal, statuses, tier)
+select l.id as list_id, l.list_start_date, css.id as campaign_stream_steps_id, css.campaign_id, css.attribute_name, css.data_type, css.data_value, css.rule_type, css.week_in, css.day_in, css.day_start, css.day_end, 
+css.campaign_sequence as campaign_sequence_id, css.col_name, css.goal, css.statuses, css.tier 
+from campaign_stream_steps css 
+inner join (select id, list_start_date from  lists where campaign_id = 14) l on datediff('day', l.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and css.active = true 
+where css.campaign_id = 14
+order by l.id, css.id;
+
+update tmp_css_numi bb
+set valid = true
+from (
+select tt.list_id, tt.campaign_sequence_id from (select list_id, campaign_sequence_id from tmp_css_numi group by list_id, campaign_sequence_id ) tt
+inner join tmp_winddown_c19_numi wnd on tt.list_id <= wnd.list_id and tt.campaign_sequence_id <= wnd.campaign_sequence_id ) zz
+where bb.list_id <= zz.list_id and bb.campaign_sequence_id <= zz.campaign_sequence_id;
 		
 drop table if exists tmp_users_goals;
 create temp table tmp_users_goals (user_id integer, week_in integer, list_id integer, list_start_date date, col_name varchar(255), goal integer);
@@ -59,7 +71,8 @@ css.week_in, css.col_name, css.goal, css.rule_type, css.attribute_name, css.data
 from lists  l
 inner join campaign_stream_steps css on datediff('day', l.list_start_date::date, _datetime::date)  
 between day_start and day_end and
-rule_type in ('task_count', 'result_status_success') and css.campaign_id = 14  and l.campaign_id = 14;
+rule_type in ('task_count', 'result_status_success') and css.campaign_id = 14  and l.campaign_id = 14
+inner join tmp_css_numi wnd on l.id = wnd.list_id and css.id = wnd.campaign_stream_steps_id and wnd.valid is true;
 
 -- insert task goals
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
@@ -72,12 +85,13 @@ except
 
 -- set zero task count
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
 select tt.user_id, tt.attribute_name, tt.data_type, '0' as data_value, tt.campaign_stream_steps_id, tt.list_users_id from (
 select lu.user_id, css.attribute_name, css.data_type,  css.id as campaign_stream_steps_id, lu.list_id as list_users_id
 from list_users_c19 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end 
   and css.campaign_id in (14) and rule_type = 'task_count' --and task_number = 2
---where lu.campaign_id = 14 
+inner join tmp_css_numi wnd on lu.list_id = wnd.list_id and css.id = wnd.campaign_stream_steps_id and wnd.valid is true  -- added for winddown
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type = 'task_count' and css.campaign_id = 14 ) tt;
 
@@ -229,7 +243,6 @@ drop table if exists tmp_users_css;
 drop table if exists tmp_success_users;
 
 END;
-$BODY$;
+$function$
+;
 
-ALTER FUNCTION public.challenge_19_update(timestamp without time zone, integer)
-    OWNER TO gfuser;
