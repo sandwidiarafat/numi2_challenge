@@ -11,15 +11,38 @@ insert into challenge_run_log (function_name, created_at, updated_at)
 select 'challenge_start_numi_19_update' as function_name, current_timestamp as created_at, current_timestamp as updated_at;
 
 /** 1.0 step 1 initiate campaigns **/  --1/6 1,574 1/7 1874
+/* add winddown table */  -- 11/27/2019
 
+drop table if exists tmp_css_numi;
+create temp table tmp_css_numi (list_id integer, list_start_date date, campaign_stream_steps_id integer, campaign_id integer, attribute_name varchar, data_type varchar, data_value varchar, rule_type varchar, week_in integer, day_in integer, 
+day_start integer, day_end integer, campaign_sequence_id integer, col_name varchar, goal integer, statuses varchar,  tier boolean, valid boolean);
+
+insert into tmp_css_numi (list_id, list_start_date, campaign_stream_steps_id, campaign_id, attribute_name, data_type, data_value, rule_type, week_in, day_in, day_start, day_end, campaign_sequence_id, col_name, goal, statuses, tier)
+select l.id as list_id, l.list_start_date, css.id as campaign_stream_steps_id, css.campaign_id, css.attribute_name, css.data_type, css.data_value, css.rule_type, css.week_in, css.day_in, css.day_start, css.day_end, 
+css.campaign_sequence as campaign_sequence_id, css.col_name, css.goal, css.statuses, css.tier 
+from campaign_stream_steps css 
+inner join (select id, list_start_date from  lists where campaign_id = 14) l on datediff('day', l.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and css.active = true 
+where css.campaign_id = 14
+order by l.id, css.id;
+
+update tmp_css_numi bb
+set valid = true
+from (
+select tt.list_id, tt.campaign_sequence_id from (select list_id, campaign_sequence_id from tmp_css_numi group by list_id, campaign_sequence_id ) tt
+inner join tmp_winddown_c19_numi wnd on tt.list_id <= wnd.list_id and tt.campaign_sequence_id <= wnd.campaign_sequence_id ) zz
+where bb.list_id <= zz.list_id and bb.campaign_sequence_id <= zz.campaign_sequence_id;
+
+--select * from tmp_css_numi
 -- 1.1
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
+select tt.user_id, tt.attribute_name, tt.data_type, tt.data_value, tt.id, tt.list_id  from (
 select lu.user_id, css.attribute_name, css.data_type, css.data_value, css.id, lu.list_id  
 --select *
 from list_users_c19 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and lu.campaign_id = css.campaign_id
 where css.rule_type in  ('date_only','date_only_start', 'date_only_complete') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day and lu.deleted_at is null and css.campaign_id = 14 
+) tt inner join tmp_css_numi wnd on tt.list_id = wnd.list_id and tt.id = wnd.campaign_stream_steps_id and wnd.valid is true
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('date_only','date_only_start', 'date_only_complete') and css.campaign_id = 14; 
 
@@ -27,10 +50,13 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id an
 -- 1.2
 --start_date
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
+
+select tt.user_id, tt.attribute_name, tt.data_type, tt.data_value, tt.id, tt.list_id  from (
 select lu.user_id, css.attribute_name, css.data_type, to_char(lu.list_start_date::date, 'MM /DD /YYYY') as data_value, css.id, lu.list_id  
 from list_users_c19 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and lu.campaign_id = css.campaign_id
 where css.rule_type in  ('start_date') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day   and lu.deleted_at is null and css.campaign_id = 14
+) tt inner join tmp_css_numi wnd on tt.list_id = wnd.list_id and tt.id = wnd.campaign_stream_steps_id and wnd.valid is true
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('start_date') and css.campaign_id = 14; 
 
@@ -39,10 +65,12 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id an
 --start_date_begin
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
+select tt.user_id, tt.attribute_name, tt.data_type, tt.data_value, tt.id, tt.list_id  from (
 select lu.user_id, css.attribute_name, css.data_type, to_char(lu.list_start_date::date + (css.day_in - 1 ) * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, css.id, lu.list_id  
 from list_users_c19 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and lu.campaign_id = css.campaign_id
 where css.rule_type in  ('start_date_begin') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day   and lu.deleted_at is null and css.campaign_id = 14
+) tt inner join tmp_css_numi wnd on tt.list_id = wnd.list_id and tt.id = wnd.campaign_stream_steps_id and wnd.valid is true
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('start_date_begin') and css.campaign_id = 14; 
 
@@ -51,10 +79,12 @@ inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id an
 --end_date
 insert into appboy_user_events (user_id, attribute_name, data_type, data_value, campaign_stream_steps_id, list_users_id)
 
+select tt.user_id, tt.attribute_name, tt.data_type, tt.data_value, tt.id, tt.list_id  from (
 select lu.user_id, css.attribute_name, css.data_type, to_char(lu.list_start_date::date + (css.day_in - 1 ) * INTERVAL '1 day', 'MM /DD /YYYY') as data_value, css.id, lu.list_id  
 from list_users_c19 lu
 inner join campaign_stream_steps css on datediff('day', lu.list_start_date::date, _datetime::date) + 1 between css.day_start and css.day_end and lu.campaign_id = css.campaign_id
 where css.rule_type in  ('end_date') and css.active = TRUE and lu.list_start_date <= _datetime::date + interval '7' day   and lu.deleted_at is null and css.campaign_id = 14
+) tt inner join tmp_css_numi wnd on tt.list_id = wnd.list_id and tt.id = wnd.campaign_stream_steps_id and wnd.valid is true
 except  select aue.user_id, aue.attribute_name, aue.data_type, aue.data_value, aue.campaign_stream_steps_id, aue.list_users_id  from appboy_user_events aue
 inner join campaign_stream_steps css on aue.campaign_stream_steps_id = css.id and css.rule_type in  ('end_date') and css.campaign_id = 14; 
 
