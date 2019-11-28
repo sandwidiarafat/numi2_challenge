@@ -1,16 +1,7 @@
--- FUNCTION: public.challenge_start_numi_19_update(timestamp without time zone, integer)
-
--- DROP FUNCTION public.challenge_start_numi_19_update(timestamp without time zone, integer);
-
-CREATE OR REPLACE FUNCTION public.challenge_start_numi_19_update(
-	_datetime timestamp without time zone,
-	debug_mode integer DEFAULT NULL::integer)
-    RETURNS void
-    LANGUAGE 'plpgsql'
-
-    COST 100
-    VOLATILE 
-AS $BODY$
+CREATE OR REPLACE FUNCTION public.challenge_start_numi_19_update(_datetime timestamp without time zone, debug_mode integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
 
 
 
@@ -86,7 +77,5 @@ where id in (select id from challenge_run_log where function_name = 'challenge_s
 
 
 END;
-$BODY$;
-
-ALTER FUNCTION public.challenge_start_numi_19_update(timestamp without time zone, integer)
-    OWNER TO gfuser;
+$function$
+;
